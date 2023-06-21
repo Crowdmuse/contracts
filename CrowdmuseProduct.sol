@@ -1,21 +1,18 @@
 // SPDX-License-Identifier: MIT
+pragma solidity ^0.8.10;
 
-pragma solidity 0.8.10;
-
-import { Create2 } from "@openzeppelin/contracts/utils/Create2.sol";
+import "@openzeppelin/contracts/token/common/ERC2981.sol";
 import { ERC721URIStorage } from "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import { ERC721Enumerable } from "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import { SafeMath } from "@openzeppelin/contracts/utils/math/SafeMath.sol";
-import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
-import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
-import { Base64} from "@openzeppelin/contracts/utils/Base64.sol";
-import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import { ReentrancyGuard } from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import { ERC721 } from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {Counters } from "@openzeppelin/contracts/utils/Counters.sol";
+import { Counters } from "@openzeppelin/contracts/utils/Counters.sol";
+import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-contract CrowdmuseProduct is ERC721URIStorage, ERC721Enumerable, ReentrancyGuard {
+contract CrowdmuseProduct is ERC721, ERC721URIStorage, ERC721Enumerable, ERC2981, ReentrancyGuard, Ownable {
 
   using SafeMath for uint256;
   using Counters for Counters.Counter;
@@ -25,7 +22,6 @@ contract CrowdmuseProduct is ERC721URIStorage, ERC721Enumerable, ReentrancyGuard
   Counters.Counter internal contributionId;
   Counters.Counter public tokenId;
 
-  address public owner;
   uint256 public projectSource; // project Id that this product belongs to
 
   ProductStatus public productStatus; // whether product is complete
@@ -42,21 +38,19 @@ contract CrowdmuseProduct is ERC721URIStorage, ERC721Enumerable, ReentrancyGuard
     Complete
   }
 
+ enum NFTTypes {
+    Default,
+    Product,
+    Contributor,
+    Investor
+  }
+
   enum TaskStatus {
     Open,
     Assigned,
     Complete
   }
 
-  enum NFTTypes {
-    Product,
-    Contributor,
-    Investor
-  }
-
-  uint256 constant product = 0;
-  uint256 constant contributor = 1;
-  uint256 constant investor = 2;
 
   struct TaskInformation {
     uint256 taskId;
@@ -71,44 +65,38 @@ contract CrowdmuseProduct is ERC721URIStorage, ERC721Enumerable, ReentrancyGuard
     uint256 taskType;
   }
 
-
-  modifier onlyOwner() {
-    _;
-    require(msg.sender == owner, "Not Owner");
+   struct Task {
+    uint256[] contributionValues;
+    address[] taskContributors;
+    TaskStatus[] taskStatus;
+    uint256[] taskContributorTypes;
   }
 
-  modifier onlyCrowdmuseHub() {
-    _;
-    require(msg.sender == crowdmuseHub, "only Crowdmuse hub");
-  }
 
   mapping(uint256 => TaskInformation) public taskByTaskId;
-  mapping(uint256 => uint256) public NFTByType; // mapping that keeps the NFT type for each  NFT id
+  mapping(uint256 => uint8) public NFTByType; /// mapping that keeps the NFT type for each  NFT id
   mapping(address => bool) public contributors;
 
   constructor(
-    address _owner,
-    address _paymentTokenAddress,
+    uint96 _feeNumerator,
+    uint256 _contributorTotalSupply,
+    uint256 _garmentsAvailable,
+    Task memory _task,
     string memory _productName,
     string memory _productSymbol,
-    uint256 _contributorTotalSupply, // project tokens
-    // The below are task related arrays
-    uint256[] memory _contributionValues,
-    address[] memory _taskContributors,
-    TaskStatus[] memory _taskStatus,
-    uint256[] memory _taskContributorTypes,
-    uint256 _garmentsAvailable,
-    string memory _baseUri
+    string memory _baseUri,
+    address _paymentTokenAddress
   ) ERC721(_productName, _productSymbol) {
-    owner = _owner;
+    _setDefaultRoyalty(address(this), _feeNumerator);
     paymentToken = IERC20(_paymentTokenAddress);
     productStatus = ProductStatus.InProgress;
     contributorTotalSupply = _contributorTotalSupply;
     garmentsAvailable = _garmentsAvailable;
-    createTasks(_contributionValues, _taskContributors, _taskStatus, _taskContributorTypes);
+    createTasks(_task.contributionValues, _task.taskContributors, _task.taskStatus, _task.taskContributorTypes);
 
     if (bytes(_baseUri).length > 0) baseURI = _baseUri;
   }
+
 
   function addContributor(address to) private {
     contributors[to] = true;
@@ -127,12 +115,13 @@ contract CrowdmuseProduct is ERC721URIStorage, ERC721Enumerable, ReentrancyGuard
       );
       taskId.increment();
       uint256 _taskId = taskId.current();
-      taskByTaskId[_taskId].taskId = _taskId;
-      taskByTaskId[_taskId].taskOwnerAddress = msg.sender;
-      taskByTaskId[_taskId].contributionValue = _contributionValues[i];
-      taskByTaskId[_taskId].taskStatus = _taskStatus[i];
-      taskByTaskId[_taskId].taskContributor = _taskContributors[i];
-      taskByTaskId[_taskId].taskType = _taskType[i];
+     TaskInformation storage _taskByTaskId = taskByTaskId[_taskId];
+      _taskByTaskId.taskId = _taskId;
+      _taskByTaskId.taskOwnerAddress = msg.sender;
+      _taskByTaskId.contributionValue = _contributionValues[i];
+      _taskByTaskId.taskStatus = _taskStatus[i];
+      _taskByTaskId.taskContributor = _taskContributors[i];
+      _taskByTaskId.taskType = _taskType[i];
       contributorPointsAllocated += _contributionValues[i];
       if (_taskStatus[i] == TaskStatus.Complete) {
         // approve
@@ -161,15 +150,18 @@ contract CrowdmuseProduct is ERC721URIStorage, ERC721Enumerable, ReentrancyGuard
 
   function buyNFT(address _to) public nonReentrant returns (uint256 _tokenId) {
     require(productStatus == ProductStatus.Complete, "Product not complete");
-    require(paymentToken.balanceOf(msg.sender) > buyNFTPrice, "Not enough balance");
+    require(paymentToken.balanceOf(msg.sender) >= buyNFTPrice, "Not enough balance");
     require(garmentsAvailable > 0, "No garments left");
     require(_to != address(0), "Address must not be zero");
-    paymentToken.safeTransferFrom(msg.sender, address(this), buyNFTPrice);
+    if (buyNFTPrice > 0) {
+      paymentToken.safeTransferFrom(msg.sender, address(this), buyNFTPrice);
+    }
     tokenId.increment();
     _tokenId = tokenId.current();
     _safeMint(_to, _tokenId);
     garmentsAvailable -= 1;
-    NFTByType[_tokenId] = product;
+    uint8 productTypeAsUint = uint8(NFTTypes.Product);
+    NFTByType[_tokenId] = productTypeAsUint;
   }
 
   function distributeRewards() public nonReentrant {
@@ -214,7 +206,7 @@ contract CrowdmuseProduct is ERC721URIStorage, ERC721Enumerable, ReentrancyGuard
     return baseURI;
   }
 
-  function supportsInterface(bytes4 interfaceId) public view override(ERC721, ERC721Enumerable) returns (bool) {
+  function supportsInterface(bytes4 interfaceId) public view override(ERC721URIStorage,ERC721Enumerable) returns (bool) {
     return super.supportsInterface(interfaceId);
   }
 }
