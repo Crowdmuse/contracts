@@ -105,7 +105,8 @@ contract CrowdmuseProduct is ERC721A, ERC2981, ReentrancyGuard, Ownable {
     string memory _inventoryKey,
     Inventory[] memory _inventory,
     bool _madeToOrder,
-    address _admin
+    address _admin,
+    uint256 _buyNFTPrice
   ) ERC721A(_token.productName, _token.productSymbol) {
     admin = address(_admin);
     _setDefaultRoyalty(address(this), _feeNumerator);
@@ -115,6 +116,8 @@ contract CrowdmuseProduct is ERC721A, ERC2981, ReentrancyGuard, Ownable {
     garmentsAvailable = _garmentsAvailable;
     maxAmountOfTokensPerMint = _token.maxAmountOfTokensPerMint;
     createTasks(_task.contributionValues, _task.taskContributors, _task.taskStatus, _task.taskContributorTypes);
+    buyNFTPrice = _buyNFTPrice;
+    if (buyNFTPrice > 0) { productStatus = ProductStatus.Complete;}
 
     if (!_madeToOrder) {
       uint96 totalGarmentsMatches;
@@ -200,7 +203,8 @@ contract CrowdmuseProduct is ERC721A, ERC2981, ReentrancyGuard, Ownable {
     require(inventoryGarmentsRemaining[garmentType] >= _quantity, "None of this type remaining");
     require(paymentToken.balanceOf(msg.sender) >= buyNFTPrice.mul(_quantity), "Not enough balance");
     if (buyNFTPrice > 0) {
-      paymentToken.safeTransferFrom(msg.sender, address(this), buyNFTPrice);
+      uint256 transferAmount = buyNFTPrice.mul(_quantity);
+      paymentToken.safeTransferFrom(msg.sender, address(this), transferAmount);
     }
 
     _safeMint(_to, _quantity);
