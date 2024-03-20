@@ -1,66 +1,25 @@
-## Foundry
+# CrowdmuseProduct v1.0
 
-**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
+This repository contains the core smart contract for the Crowdmuse [application](https://www.crowdmuse.xyz/).
 
-Foundry consists of:
+We see a lot of complicated contracts out there these days. Unncessarily complicated. Simplicity is not a virtue but it does make your software more accessible and less prone to edge case hacks.
 
--   **Forge**: Ethereum testing framework (like Truffle, Hardhat and DappTools).
--   **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions and getting chain data.
--   **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
--   **Chisel**: Fast, utilitarian, and verbose solidity REPL.
+The Crowdmuse Product is a smart contract built on top of ERC721 which has additional functionality for storing data about collaborators and a function to distribute sales revenue to these collaborators based on their contribution points.
 
-## Documentation
+Check it out, you don't need to be a master of solidity to figure this one out. No over-engineering, no overkill, just vibes.
 
-https://book.getfoundry.sh/
 
-## Usage
+## [Crowdmuse](https://www.crowdmuse.com/)
 
-### Build
+A network of brands, designers, pattern makers + manufacturers; MetaFactory, [a]industri, Hugh Clarke, Rickard Lindqvist, KALAU and more
 
-```shell
-$ forge build
-```
+## Contributing
 
-### Test
+We're looking for developers to help us build out tests using Hardhat & Foundry. This project is a great opportunity for anyone looking to upskill in Solidity, learn from other developers and get a public record of their progress. Feel free to contact one of the team or raise a pull request. My telegram is Amirjab21 in case you want to chat about anything.
 
-```shell
-$ forge test
-```
+Crowdmuse follows the [Contributor Covenant Code of Conduct](https://www.contributor-covenant.org/version/1/4/code-of-conduct).
 
-### Format
 
-```shell
-$ forge fmt
-```
 
-### Gas Snapshots
 
-```shell
-$ forge snapshot
-```
 
-### Anvil
-
-```shell
-$ anvil
-```
-
-### Deploy
-
-```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
-```
-
-### Cast
-
-```shell
-$ cast <subcommand>
-```
-
-### Help
-
-```shell
-$ forge --help
-$ anvil --help
-$ cast --help
-```
