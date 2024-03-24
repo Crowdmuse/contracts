@@ -24,34 +24,42 @@ contract DeployCrowdmuseProduct is Script, ICrowdmuseProduct {
             taskContributorTypes: taskContributorTypes
         });
         Token memory token = Token({
-            productName: "MyProduct",
-            productSymbol: "MPROD",
-            baseUri: "ipfs://baseuri/",
-            maxAmountOfTokensPerMint: 10
+            productName: "crowdmuse-product",
+            productSymbol: "CMUSE",
+            baseUri: "ipfs://cid",
+            maxAmountOfTokensPerMint: type(uint256).max
         });
         uint96 feeNumerator = 500;
         uint96 contributorTotalSupply = 10000;
-        uint96 garmentsAvailable = 100;
+        uint96 garmentsAvailable = type(uint96).max;
+        string memory inventoryKeyName = "crowdmuse-product-inventory-key";
 
         Inventory[] memory inventory = new Inventory[](1);
-        inventory[0] = Inventory({keyName: "size:one", garmentsRemaining: 100});
+        inventory[0] = Inventory({
+            keyName: "size:one",
+            garmentsRemaining: garmentsAvailable
+        });
         address usdc_base_sepolia = 0x63148156DACb0e8555287906F8FC229E0b11365b;
+        address paymentTokenAddress = usdc_base_sepolia;
+        bool madeToOrder = false;
+        address admin = 0x35CE1fb8CAa3758190ac65EDbcBC9647b8800e8f;
+        uint256 buyNFTPrice = 1 ether;
         CrowdmuseProduct product = new CrowdmuseProduct(
             feeNumerator,
             contributorTotalSupply,
             garmentsAvailable,
             task,
             token,
-            usdc_base_sepolia,
-            "InventoryKey",
+            paymentTokenAddress,
+            inventoryKeyName,
             inventory,
-            false, // _madeToOrder
-            0x35CE1fb8CAa3758190ac65EDbcBC9647b8800e8f,
-            1 ether // _buyNFTPrice
+            madeToOrder,
+            admin,
+            buyNFTPrice
         );
 
         console.log("CrowdmuseProduct deployed to:", address(product));
 
-        vm.stopBroadcast(); // Stop broadcasting transactions
+        vm.stopBroadcast();
     }
 }
