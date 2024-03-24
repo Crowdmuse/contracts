@@ -9,8 +9,15 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ERC721A} from "erc721a/contracts/ERC721A.sol";
+import {ICrowdmuseProduct} from "./interfaces/ICrowdmuseProduct.sol";
 
-contract CrowdmuseProduct is ERC721A, ERC2981, ReentrancyGuard, Ownable {
+contract CrowdmuseProduct is
+    ICrowdmuseProduct,
+    ERC721A,
+    ERC2981,
+    ReentrancyGuard,
+    Ownable
+{
     using SafeERC20 for IERC20;
 
     uint256 internal taskId;
@@ -27,49 +34,6 @@ contract CrowdmuseProduct is ERC721A, ERC2981, ReentrancyGuard, Ownable {
     string public baseURI;
     address public admin;
 
-    enum ProductStatus {
-        InProgress,
-        Complete
-    }
-
-    enum NFTTypes {
-        Default,
-        Product,
-        Contributor,
-        Investor
-    }
-
-    enum TaskStatus {
-        Open,
-        Assigned,
-        Complete
-    }
-
-    struct TaskInformation {
-        uint256 taskId;
-        uint256 contributionValue;
-        address taskOwnerAddress;
-        address taskContributor;
-        uint256[] licensedProjects;
-        uint24 feedbackScore;
-        string submissionUri;
-        string taskMetadataUri;
-        TaskStatus taskStatus;
-        uint256 taskType;
-    }
-
-    struct Task {
-        uint256[] contributionValues;
-        address[] taskContributors;
-        TaskStatus[] taskStatus;
-        uint256[] taskContributorTypes;
-    }
-
-    struct Inventory {
-        string keyName;
-        uint96 garmentsRemaining;
-    }
-
     mapping(uint256 => TaskInformation) public taskByTaskId;
     mapping(uint256 => uint8) public NFTByType; // mapping that keeps the NFT type for each  NFT id
     mapping(uint256 => bytes32) public NFTBySize; // mapping that keeps the NFT type for each  NFT id
@@ -82,13 +46,6 @@ contract CrowdmuseProduct is ERC721A, ERC2981, ReentrancyGuard, Ownable {
     mapping(bytes32 => uint96) public inventoryGarmentsRemaining;
     mapping(bytes32 => uint96) public inventoryGarmentsOrdered;
     bool public madeToOrder;
-
-    struct Token {
-        string productName;
-        string productSymbol;
-        string baseUri;
-        uint256 maxAmountOfTokensPerMint;
-    }
 
     constructor(
         uint96 _feeNumerator,
@@ -350,7 +307,7 @@ contract CrowdmuseProduct is ERC721A, ERC2981, ReentrancyGuard, Ownable {
     }
 
     function tokenURI(
-        uint256 _tokenId
+        uint256
     ) public view override(ERC721A) returns (string memory) {
         return baseURI;
     }
