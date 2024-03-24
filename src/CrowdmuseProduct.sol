@@ -306,7 +306,7 @@ contract CrowdmuseProduct is
     }
 
     function tokenURI(
-        uint256 _tokenId
+        uint256
     ) public view override(ERC721A) returns (string memory) {
         return baseURI;
     }

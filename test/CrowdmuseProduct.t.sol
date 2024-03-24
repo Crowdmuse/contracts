@@ -70,7 +70,7 @@ contract CrowdmuseProductTest is Test, ICrowdmuseProduct {
         );
     }
 
-    function test_Name() public view {
+    function test_name() public view {
         string memory expected = "MyProduct";
         assertEq(
             product.name(),
@@ -79,14 +79,21 @@ contract CrowdmuseProductTest is Test, ICrowdmuseProduct {
         );
     }
 
-    function test_Symbol() public view {
+    function test_symbol() public view {
         string memory expected = "MPROD";
         assertEq(
             product.symbol(),
             expected,
-            "Product name does not match expected value."
+            "Product symbol does not match expected value."
         );
     }
 
-    // Add more tests below
+    function test_madeToOrder() public view {
+        bool expected = false;
+        assertEq(
+            product.madeToOrder(),
+            expected,
+            "Product madeToOrder does not match expected value."
+        );
+    }
 }
