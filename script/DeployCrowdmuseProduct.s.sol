@@ -9,17 +9,12 @@ contract DeployCrowdmuseProduct is Script, ICrowdmuseProduct {
     function run() external {
         vm.startBroadcast(); // Start broadcasting transactions
 
-        // Parameters for CrowdmuseProduct constructor
-        uint96 feeNumerator = 500;
-        uint256 contributorTotalSupply = 10000;
-        uint256 garmentsAvailable = 100;
-
         // Mock task, token, inventory setup goes here
         // These would be replaced with your actual setup
         uint256[] memory contributionValues = new uint256[](1);
         contributionValues[0] = 1000;
         address[] memory taskContributors = new address[](1);
-        taskContributors[0] = 0xcfBf34d385EA2d5Eb947063b67eA226dcDA3DC38;
+        taskContributors[0] = 0x35CE1fb8CAa3758190ac65EDbcBC9647b8800e8f;
         TaskStatus[] memory taskStatuses = new TaskStatus[](1);
         taskStatuses[0] = TaskStatus.Complete;
         uint256[] memory taskContributorTypes = new uint256[](1);
@@ -39,10 +34,6 @@ contract DeployCrowdmuseProduct is Script, ICrowdmuseProduct {
 
         Inventory[] memory inventory = new Inventory[](1);
         inventory[0] = Inventory({keyName: "size:one", garmentsRemaining: 100});
-        address paymentTokenAddress = 0xcfBf34d385EA2d5Eb947063b67eA226dcDA3DC38; // Use actual payment token address
-        string memory inventoryKey = "InventoryKey";
-        bool madeToOrder = false;
-        uint256 buyNFTPrice = 1 ether;
         address usdc_base_sepolia = 0x63148156DACb0e8555287906F8FC229E0b11365b;
         CrowdmuseProduct product = new CrowdmuseProduct(
             500, // _feeNumerator
@@ -54,7 +45,7 @@ contract DeployCrowdmuseProduct is Script, ICrowdmuseProduct {
             "InventoryKey",
             inventory,
             false, // _madeToOrder
-            0xcfBf34d385EA2d5Eb947063b67eA226dcDA3DC38,
+            0x35CE1fb8CAa3758190ac65EDbcBC9647b8800e8f,
             1 ether // _buyNFTPrice
         );
 
