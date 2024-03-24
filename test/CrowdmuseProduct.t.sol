@@ -2,7 +2,8 @@
 pragma solidity ^0.8.10;
 
 import "forge-std/Test.sol";
-import "../src/CrowdmuseProduct.sol"; // Update the path according to your project structure
+import {CrowdmuseProduct} from "../src/CrowdmuseProduct.sol";
+import {ICrowdmuseProduct} from "../src/interfaces/ICrowdmuseProduct.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 // Mock ERC20 for testing purposes
@@ -12,7 +13,7 @@ contract MockERC20 is ERC20 {
     }
 }
 
-contract CrowdmuseProductTest is Test {
+contract CrowdmuseProductTest is Test, ICrowdmuseProduct {
     CrowdmuseProduct public product;
     MockERC20 public paymentToken;
     address admin;
@@ -22,7 +23,7 @@ contract CrowdmuseProductTest is Test {
         paymentToken = new MockERC20("MockUSD", "MUSD");
 
         // Set up initial token, task, and inventory parameters
-        CrowdmuseProduct.Token memory tokenInfo = CrowdmuseProduct.Token({
+        Token memory tokenInfo = Token({
             productName: "MyProduct",
             productSymbol: "MPROD",
             baseUri: "ipfs://baseuri/",
@@ -35,23 +36,21 @@ contract CrowdmuseProductTest is Test {
         address[] memory taskContributors = new address[](1);
         taskContributors[0] = admin; // Use the test contract's address for simplicity
 
-        CrowdmuseProduct.TaskStatus[]
-            memory taskStatuses = new CrowdmuseProduct.TaskStatus[](1);
-        taskStatuses[0] = CrowdmuseProduct.TaskStatus.Complete;
+        TaskStatus[] memory taskStatuses = new TaskStatus[](1);
+        taskStatuses[0] = TaskStatus.Complete;
 
         uint256[] memory taskContributorTypes = new uint256[](1);
         taskContributorTypes[0] = 1; // Assuming 1 represents some type of contributor
 
-        CrowdmuseProduct.Task memory initialTask = CrowdmuseProduct.Task({
+        Task memory initialTask = Task({
             contributionValues: contributionValues,
             taskContributors: taskContributors,
             taskStatus: taskStatuses,
             taskContributorTypes: taskContributorTypes
         });
 
-        CrowdmuseProduct.Inventory[]
-            memory initialInventory = new CrowdmuseProduct.Inventory[](1);
-        initialInventory[0] = CrowdmuseProduct.Inventory({
+        Inventory[] memory initialInventory = new Inventory[](1);
+        initialInventory[0] = Inventory({
             keyName: "Standard",
             garmentsRemaining: 100
         });

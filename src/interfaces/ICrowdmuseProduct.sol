@@ -15,4 +15,41 @@ interface ICrowdmuseProduct {
         TaskStatus[] taskStatus;
         uint256[] taskContributorTypes;
     }
+
+    struct Token {
+        string productName;
+        string productSymbol;
+        string baseUri;
+        uint256 maxAmountOfTokensPerMint;
+    }
+
+    struct Inventory {
+        string keyName;
+        uint96 garmentsRemaining;
+    }
+
+    enum ProductStatus {
+        InProgress,
+        Complete
+    }
+
+    enum NFTTypes {
+        Default,
+        Product,
+        Contributor,
+        Investor
+    }
+
+    struct TaskInformation {
+        uint256 taskId;
+        uint256 contributionValue;
+        address taskOwnerAddress;
+        address taskContributor;
+        uint256[] licensedProjects;
+        uint24 feedbackScore;
+        string submissionUri;
+        string taskMetadataUri;
+        TaskStatus taskStatus;
+        uint256 taskType;
+    }
 }
