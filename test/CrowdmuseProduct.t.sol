@@ -15,12 +15,12 @@ contract MockERC20 is ERC20 {
 
 contract CrowdmuseProductTest is Test, ICrowdmuseProduct {
     CrowdmuseProduct public product;
-    MockERC20 public paymentToken;
+    MockERC20 public usdc;
     address admin;
 
     function setUp() public {
         admin = address(this); // For simplicity, let the test contract be the admin
-        paymentToken = new MockERC20("MockUSD", "MUSD");
+        usdc = new MockERC20("MockUSD", "MUSD");
 
         // Set up initial token, task, and inventory parameters
         Token memory tokenInfo = Token({
@@ -61,7 +61,7 @@ contract CrowdmuseProductTest is Test, ICrowdmuseProduct {
             100, // _garmentsAvailable
             initialTask,
             tokenInfo,
-            address(paymentToken),
+            address(usdc),
             "InventoryKey",
             initialInventory,
             false, // _madeToOrder
@@ -115,5 +115,44 @@ contract CrowdmuseProductTest is Test, ICrowdmuseProduct {
             expected,
             "Product garmentTypes does not match expected value."
         );
+    }
+
+    function test_buyNFT() public {
+        // Prepare user and admin addresses
+        address userAddress = address(0x1);
+        bytes32 garmentType = keccak256(abi.encodePacked("size:one"));
+
+        // Transfer some MockUSD to the user to buy an NFT
+        uint256 userBalance = 2 ether; // Assuming buyNFTPrice is 1 ether
+        usdc.transfer(userAddress, userBalance);
+        assertTrue(usdc.balanceOf(userAddress) == userBalance);
+
+        // Ensure the product is complete to allow buying
+        assertTrue(product.productStatus() == ProductStatus.Complete);
+
+        // Approve the contract to spend user's MockUSD
+        vm.startPrank(userAddress);
+        usdc.approve(address(product), userBalance);
+
+        // Buy an NFT
+        uint256 quantity = 1;
+        uint256 userTokenBalanceBefore = product.balanceOf(userAddress);
+        product.buyNFT(userAddress, garmentType, quantity);
+
+        // Check the user now owns 1 more NFT
+        uint256 userTokenBalanceAfter = product.balanceOf(userAddress);
+        assertTrue(userTokenBalanceAfter == userTokenBalanceBefore + quantity);
+
+        // Check the payment was transferred
+        uint256 contractBalance = usdc.balanceOf(address(product));
+        assertTrue(contractBalance == 1 ether);
+
+        // Check the garment availability decreased
+        uint96 remainingGarments = product.inventoryGarmentsRemaining(
+            garmentType
+        );
+        assertTrue(remainingGarments == 99); // Assuming there were originally 100
+
+        vm.stopPrank();
     }
 }
