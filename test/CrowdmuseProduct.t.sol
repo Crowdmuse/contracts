@@ -51,7 +51,7 @@ contract CrowdmuseProductTest is Test, ICrowdmuseProduct {
 
         Inventory[] memory initialInventory = new Inventory[](1);
         initialInventory[0] = Inventory({
-            keyName: "Standard",
+            keyName: "size:one",
             garmentsRemaining: 100
         });
 
@@ -94,6 +94,26 @@ contract CrowdmuseProductTest is Test, ICrowdmuseProduct {
             product.madeToOrder(),
             expected,
             "Product madeToOrder does not match expected value."
+        );
+    }
+
+    function test_garmentTypes() public {
+        string memory expected = "size:one";
+        assertEq(
+            product.garmentTypes(0),
+            expected,
+            "Product garmentTypes does not match expected value."
+        );
+    }
+
+    function test_inventoryGarmentsRemaining() public {
+        uint96 expected = 100;
+        assertEq(
+            product.inventoryGarmentsRemaining(
+                keccak256(abi.encodePacked(product.garmentTypes(0)))
+            ),
+            expected,
+            "Product garmentTypes does not match expected value."
         );
     }
 }
