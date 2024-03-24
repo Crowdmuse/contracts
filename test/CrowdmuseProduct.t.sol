@@ -108,7 +108,7 @@ contract CrowdmuseProductTest is Test, ICrowdmuseProduct {
         bytes32 garmentType = keccak256(abi.encodePacked("size:one"));
 
         // Transfer some MockUSD to the user to buy an NFT
-        uint256 userBalance = 2 ether; // Assuming buyNFTPrice is 1 ether
+        uint256 userBalance = 2 ether;
         usdc.transfer(userAddress, userBalance);
         assertTrue(usdc.balanceOf(userAddress) == userBalance);
 
