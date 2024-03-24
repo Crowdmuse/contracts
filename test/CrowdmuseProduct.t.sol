@@ -12,36 +12,28 @@ contract CrowdmuseProductTest is Test, ICrowdmuseProduct {
     address admin;
 
     function setUp() public {
-        admin = address(this); // For simplicity, let the test contract be the admin
+        admin = address(this);
         usdc = new MockERC20("MockUSD", "MUSD");
-
-        // Set up initial token, task, and inventory parameters
         Token memory tokenInfo = Token({
             productName: "MyProduct",
             productSymbol: "MPROD",
             baseUri: "ipfs://baseuri/",
             maxAmountOfTokensPerMint: 10
         });
-
         uint256[] memory contributionValues = new uint256[](1);
         contributionValues[0] = 1000;
-
         address[] memory taskContributors = new address[](1);
-        taskContributors[0] = admin; // Use the test contract's address for simplicity
-
+        taskContributors[0] = admin;
         TaskStatus[] memory taskStatuses = new TaskStatus[](1);
         taskStatuses[0] = TaskStatus.Complete;
-
         uint256[] memory taskContributorTypes = new uint256[](1);
-        taskContributorTypes[0] = 1; // Assuming 1 represents some type of contributor
-
+        taskContributorTypes[0] = 1;
         Task memory initialTask = Task({
             contributionValues: contributionValues,
             taskContributors: taskContributors,
             taskStatus: taskStatuses,
             taskContributorTypes: taskContributorTypes
         });
-
         Inventory[] memory initialInventory = new Inventory[](1);
         initialInventory[0] = Inventory({
             keyName: "size:one",
