@@ -121,7 +121,8 @@ contract CrowdmuseProduct is ERC721A, ERC2981, ReentrancyGuard, Ownable {
             productStatus = ProductStatus.Complete;
         }
 
-        if (!_madeToOrder) {
+        madeToOrder = _madeToOrder;
+        if (!madeToOrder) {
             uint96 totalGarmentsMatches;
             inventoryKey = _inventoryKey;
             for (uint256 i = 0; i < _inventory.length; i++) {
@@ -136,8 +137,6 @@ contract CrowdmuseProduct is ERC721A, ERC2981, ReentrancyGuard, Ownable {
                 totalGarmentsMatches == uint96(_garmentsAvailable),
                 "garment numbers not matching"
             );
-        } else {
-            madeToOrder = true;
         }
 
         if (bytes(_token.baseUri).length > 0) baseURI = _token.baseUri;
