@@ -4,14 +4,7 @@ pragma solidity ^0.8.10;
 import "forge-std/Test.sol";
 import {CrowdmuseProduct} from "../src/CrowdmuseProduct.sol";
 import {ICrowdmuseProduct} from "../src/interfaces/ICrowdmuseProduct.sol";
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-
-// Mock ERC20 for testing purposes
-contract MockERC20 is ERC20 {
-    constructor(string memory name, string memory symbol) ERC20(name, symbol) {
-        _mint(msg.sender, 1e24); // Mint 1 million tokens for the deployer
-    }
-}
+import {MockERC20} from "./mocks/MockERC20.sol";
 
 contract CrowdmuseProductTest is Test, ICrowdmuseProduct {
     CrowdmuseProduct public product;
@@ -97,7 +90,7 @@ contract CrowdmuseProductTest is Test, ICrowdmuseProduct {
         );
     }
 
-    function test_garmentTypes() public {
+    function test_garmentTypes() public view {
         string memory expected = "size:one";
         assertEq(
             product.garmentTypes(0),
@@ -106,7 +99,7 @@ contract CrowdmuseProductTest is Test, ICrowdmuseProduct {
         );
     }
 
-    function test_inventoryGarmentsRemaining() public {
+    function test_inventoryGarmentsRemaining() public view {
         uint96 expected = 100;
         assertEq(
             product.inventoryGarmentsRemaining(
