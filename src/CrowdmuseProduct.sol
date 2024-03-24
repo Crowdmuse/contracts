@@ -11,6 +11,8 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {ERC721A} from "erc721a/contracts/ERC721A.sol";
 import {ICrowdmuseProduct} from "./interfaces/ICrowdmuseProduct.sol";
 
+/// @title CrowdmuseProduct
+/// @notice This contract manages the lifecycle of a product in the Crowdmuse ecosystem, handling tasks, inventory, and NFT minting.
 contract CrowdmuseProduct is
     ICrowdmuseProduct,
     ERC721A,
@@ -20,33 +22,63 @@ contract CrowdmuseProduct is
 {
     using SafeERC20 for IERC20;
 
+    /// @dev Internal counter for task IDs
     uint256 internal taskId;
+    /// @dev Public counter for token IDs
     uint256 public tokenId;
-
-    ProductStatus public productStatus; // whether product is complete
-    uint256 public buyNFTPrice; // nft price
+    /// Current status of the product, indicating if it is in progress or complete
+    ProductStatus public productStatus;
+    /// Price for buying an NFT
+    uint256 public buyNFTPrice;
+    /// Maximum amount of tokens that can be minted in a single operation
     uint256 private maxAmountOfTokensPerMint;
-    uint256 public contributorTotalSupply; // total supply of tokens for this project
-    uint256 public contributorPointsAllocated; // used to ensure that the maximum supply of tokens is not exceeded
-    uint256 public contributorPointsComplete; // used to distribute profits
-    uint256 public garmentsAvailable; // remaining NFTs
-    IERC20 public paymentToken; // ERC20 token address used for payment
+    /// Total supply of tokens for this project
+    uint256 public contributorTotalSupply;
+    /// Total amount of contribution points allocated
+    uint256 public contributorPointsAllocated;
+    /// Total amount of contribution points that have been completed
+    uint256 public contributorPointsComplete;
+    /// Remaining garments (NFTs) available for purchase
+    uint256 public garmentsAvailable;
+    /// ERC20 token used for payment
+    IERC20 public paymentToken;
+    /// Base URI for the NFT metadata
     string public baseURI;
+    /// Administrator address with special permissions
     address public admin;
-
+    /// Mapping of task ID to its information
     mapping(uint256 => TaskInformation) public taskByTaskId;
-    mapping(uint256 => uint8) public NFTByType; // mapping that keeps the NFT type for each  NFT id
-    mapping(uint256 => bytes32) public NFTBySize; // mapping that keeps the NFT type for each  NFT id
+    /// Mapping of NFT ID to its type
+    mapping(uint256 => uint8) public NFTByType;
+    /// Mapping of NFT ID to its size
+    mapping(uint256 => bytes32) public NFTBySize;
+    /// Mapping to track which addresses are contributors
     mapping(address => bool) public contributors;
-
-    // Variables for managing inventory //
+    /// Key for managing inventory
     string public inventoryKey;
-    string[] public garmentTypes; // This is the format of the garmentTypes '{inventoryKey}:Green,size:large'
+    /// List of garment types available
+    string[] public garmentTypes;
+    /// Number of garment types
     uint96 public numberGarmentTypes;
+    /// Mapping of garment type to remaining garments
     mapping(bytes32 => uint96) public inventoryGarmentsRemaining;
+    /// Mapping of garment type to ordered garments
     mapping(bytes32 => uint96) public inventoryGarmentsOrdered;
+    /// Indicates if the product is made to order
     bool public madeToOrder;
 
+    /// @notice Contract constructor that initializes the Crowdmuse product
+    /// @param _feeNumerator Royalty fee numerator for the ERC2981 standard
+    /// @param _contributorTotalSupply Total supply of contribution points for this project
+    /// @param _garmentsAvailable Number of NFTs available for this project
+    /// @param _task Initial task information
+    /// @param _token Token details like name, symbol, and base URI
+    /// @param _paymentTokenAddress Address of the ERC20 token used for payments
+    /// @param _inventoryKey Unique key for managing inventory
+    /// @param _inventory Initial inventory setup
+    /// @param _madeToOrder Boolean indicating if the product is made to order
+    /// @param _admin Address of the administrator
+    /// @param _buyNFTPrice Price for buying an NFT
     constructor(
         uint96 _feeNumerator,
         uint256 _contributorTotalSupply,
@@ -100,11 +132,14 @@ contract CrowdmuseProduct is
         if (bytes(_token.baseUri).length > 0) baseURI = _token.baseUri;
     }
 
+    /// @notice Modifier that allows only the admin to perform certain actions
     modifier onlyAdmin() {
         require(msg.sender == admin, "Only Admin");
         _;
     }
 
+    /// @notice Allows the owner to change the admin address
+    /// @param _newAddress The new admin address
     function changeAdmin(address _newAddress) public onlyOwner {
         require(_newAddress != address(0), "Zero Address");
         admin = _newAddress;
@@ -114,6 +149,12 @@ contract CrowdmuseProduct is
 
     receive() external payable {}
 
+    /// @notice Creates tasks for the product
+    /// @dev Only callable by the owner
+    /// @param _contributionValues Array of contribution values for each task
+    /// @param _taskContributors Array of addresses for task contributors
+    /// @param _taskStatus Array of task statuses
+    /// @param _taskType Array of task types
     function createTasks(
         uint256[] memory _contributionValues,
         address[] memory _taskContributors,
@@ -143,12 +184,22 @@ contract CrowdmuseProduct is
         }
     }
 
+    /// @notice Submits the product, marking it as complete and setting the buy NFT price
+    /// @dev Only callable by the owner
+    /// @param _buyNFTPrice The price for buying an NFT
     function submitProduct(uint256 _buyNFTPrice) public onlyOwner {
         require(productStatus != ProductStatus.Complete, "already submitted");
         productStatus = ProductStatus.Complete;
         buyNFTPrice = _buyNFTPrice;
     }
 
+    /// @notice Allows the creation of tasks and submission of the product in one transaction
+    /// @dev Only callable by the owner
+    /// @param _contributionValues Array of contribution values for the tasks
+    /// @param _taskContributors Array of contributor addresses for the tasks
+    /// @param _taskStatus Array of status values for each task
+    /// @param _taskType Array of task types
+    /// @param _buyNFTPrice The price for buying an NFT once the product is submitted
     function createTasksAndSubmitProduct(
         uint256[] memory _contributionValues,
         address[] memory _taskContributors,
@@ -165,6 +216,12 @@ contract CrowdmuseProduct is
         submitProduct(_buyNFTPrice);
     }
 
+    /// @notice Buys an NFT of a specific garment type and quantity if the product is complete
+    /// @dev Ensures the caller has enough payment token balance and approves the contract to spend it
+    /// @param _to Recipient of the NFT
+    /// @param garmentType Type of garment (NFT) being purchased
+    /// @param _quantity Quantity of NFTs to buy
+    /// @return _tokenId The ID of the last token minted as part of the purchase
     function buyNFT(
         address _to,
         bytes32 garmentType,
@@ -215,6 +272,12 @@ contract CrowdmuseProduct is
         }
     }
 
+    /// @notice Allows the admin to mint NFTs for a specific garment type and quantity without payment
+    /// @dev Used for promotional or administrative purposes
+    /// @param _to Recipient of the NFTs
+    /// @param garmentType Type of garment (NFT) being minted
+    /// @param _quantity Quantity of NFTs to mint
+    /// @return _tokenId The ID of the last token minted
     function buyPrepaidNFT(
         address _to,
         bytes32 garmentType,
@@ -250,6 +313,8 @@ contract CrowdmuseProduct is
         }
     }
 
+    /// @notice Distributes rewards to contributors based on their contribution values
+    /// @dev Can be called by anyone after the product is complete to distribute ERC20 token rewards
     function distributeRewards() public nonReentrant {
         uint256 currentBalance = paymentToken.balanceOf(address(this));
         require(currentBalance > 0, "No funds available");
@@ -269,6 +334,8 @@ contract CrowdmuseProduct is
         }
     }
 
+    /// @notice Distributes native currency rewards to contributors based on their contribution values
+    /// @dev Can be called by anyone after the product is complete to distribute native currency rewards
     function distributeRewardsNative() public nonReentrant {
         uint256 currentBalance = address(this).balance;
         require(currentBalance > 0, "No funds available");
@@ -289,29 +356,41 @@ contract CrowdmuseProduct is
         }
     }
 
+    /// @notice Adds an address to the list of contributors
+    /// @dev Private function called internally to mark addresses as contributors
+    /// @param to The address to add as a contributor
     function addContributor(address to) private {
         contributors[to] = true;
     }
 
+    /// @return The overridden base URI set for the NFT metadata
     function _baseURI() internal view override returns (string memory) {
         return baseURI;
     }
 
+    /// @notice Allows the owner to change the base URI for the NFT metadata
+    /// @param _newBaseUri The new base URI to be set
     function changeBaseUri(string memory _newBaseUri) external onlyOwner {
-        // In case the gateway breaks
         baseURI = _newBaseUri;
     }
 
+    /// @notice Overrides the ERC721A's _startTokenId function to start token IDs at 1 instead of 0
+    /// @return The starting token ID for the NFTs, which is 1
     function _startTokenId() internal view virtual override returns (uint256) {
         return 1;
     }
 
+    /// @notice Returns the token URI for a given token ID
+    /// @return The token URI string for the given token ID
     function tokenURI(
         uint256
     ) public view override(ERC721A) returns (string memory) {
         return baseURI;
     }
 
+    /// @notice Checks if the contract supports a given interface
+    /// @param interfaceId The interface ID to check for support
+    /// @return A boolean value indicating whether the contract supports the given interface
     function supportsInterface(
         bytes4 interfaceId
     ) public view virtual override(ERC721A, ERC2981) returns (bool) {
@@ -319,6 +398,8 @@ contract CrowdmuseProduct is
             super.supportsInterface(interfaceId));
     }
 
+    /// @notice Returns the maximum number of tokens that can be minted in a single operation
+    /// @return The maximum number of tokens per mint
     function getMaxAmountOfTokensPerMint() public view returns (uint256) {
         return maxAmountOfTokensPerMint;
     }
