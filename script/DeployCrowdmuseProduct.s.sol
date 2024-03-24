@@ -2,15 +2,13 @@
 pragma solidity ^0.8.10;
 
 import "forge-std/Script.sol";
-import "../src/CrowdmuseProduct.sol"; // Update the path according to your project structure
-import "../src/interfaces/ICrowdmuseProduct.sol"; // Update the path according to your project structure
+import "../src/CrowdmuseProduct.sol";
+import "../src/interfaces/ICrowdmuseProduct.sol";
 
 contract DeployCrowdmuseProduct is Script, ICrowdmuseProduct {
     function run() external {
-        vm.startBroadcast(); // Start broadcasting transactions
+        vm.startBroadcast();
 
-        // Mock task, token, inventory setup goes here
-        // These would be replaced with your actual setup
         uint256[] memory contributionValues = new uint256[](1);
         contributionValues[0] = 1000;
         address[] memory taskContributors = new address[](1);
@@ -31,14 +29,17 @@ contract DeployCrowdmuseProduct is Script, ICrowdmuseProduct {
             baseUri: "ipfs://baseuri/",
             maxAmountOfTokensPerMint: 10
         });
+        uint96 feeNumerator = 500;
+        uint96 contributorTotalSupply = 10000;
+        uint96 garmentsAvailable = 100;
 
         Inventory[] memory inventory = new Inventory[](1);
         inventory[0] = Inventory({keyName: "size:one", garmentsRemaining: 100});
         address usdc_base_sepolia = 0x63148156DACb0e8555287906F8FC229E0b11365b;
         CrowdmuseProduct product = new CrowdmuseProduct(
-            500, // _feeNumerator
-            10000, // _contributorTotalSupply
-            100, // _garmentsAvailable
+            feeNumerator,
+            contributorTotalSupply,
+            garmentsAvailable,
             task,
             token,
             usdc_base_sepolia,
