@@ -1,10 +1,10 @@
 on: [push]
 
-name: foundry unit tests
+name: foundry
 
 jobs:
   check:
-    name: Foundry project
+    name: unit tests & snapshot
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
