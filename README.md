@@ -12,6 +12,11 @@ Check it out, you don't need to be a master of solidity to figure this one out. 
 
 A network of brands, designers, pattern makers + manufacturers; MetaFactory, [a]industri, Hugh Clarke, Rickard Lindqvist, KALAU and more
 
+### Example Deployments - Base Sepolia
+
+- CrowdmuseProduct: [0x2B4Bf16393815090f8B9b1aECe118a6076e81BD9](https://sepolia.basescan.org/address/0x2B4Bf16393815090f8B9b1aECe118a6076e81BD9#code)
+- CrowdmuseBasicMinter: [0x6F9308addD0AEC2CfCC81930ED8c2370092D8c38](https://sepolia.basescan.org/address/0x6F9308addD0AEC2CfCC81930ED8c2370092D8c38#code)
+
 ## Deploy - CrowdmuseProduct
 
 ```
