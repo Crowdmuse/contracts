@@ -17,11 +17,6 @@ contract CrowdmuseBasicMinterTest is Test {
     address internal tokenRecipient;
     address internal fundsRecipient;
 
-    event SaleSet(
-        address indexed mediaContract,
-        uint256 indexed tokenId,
-        CrowdmuseBasicMinter.SalesConfig salesConfig
-    );
     event MintComment(
         address indexed sender,
         address indexed tokenContract,
@@ -35,7 +30,7 @@ contract CrowdmuseBasicMinterTest is Test {
         tokenRecipient = makeAddr("tokenRecipient");
         fundsRecipient = makeAddr("fundsRecipient");
 
-        minter = new CrowdmuseBasicMinter(protocolFeeRecipient);
+        minter = new CrowdmuseBasicMinter();
         vm.prank(admin);
         admin = payable(address(this));
         usdc = new MockERC20("MockUSD", "MUSD");
@@ -105,7 +100,10 @@ contract CrowdmuseBasicMinterTest is Test {
         vm.prank(admin);
         product.changeAdmin(address(minter));
 
-        vm.prank(tokenRecipient);
+        vm.startPrank(tokenRecipient);
+        uint256 newTokenId = product.totalSupply() + 1;
+        vm.expectEmit(true, true, true, true);
+        emit MintComment(mintTo, target, newTokenId, quantity, comment);
         uint256 tokenId = minter.mint(
             target,
             mintTo,
@@ -113,6 +111,8 @@ contract CrowdmuseBasicMinterTest is Test {
             quantity,
             comment
         );
+        vm.stopPrank();
+
         uint256 newGarmentsRemaining = product.inventoryGarmentsRemaining(
             garmentType
         );
