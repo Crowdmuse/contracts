@@ -18,6 +18,12 @@ A network of brands, designers, pattern makers + manufacturers; MetaFactory, [a]
 forge script script/DeployCrowdmuseProduct.s.sol:DeployCrowdmuseProduct --rpc-url YOUR_RPC_URL --private-key YOUR_PRIVATE_KEY --broadcast --verify --etherscan-api-key BLOCK_SCANNER_API_KEY -vvvv
 ```
 
+## Deploy - CrowdmuseBasicMinter
+
+```
+forge script script/DeployCrowdmuseBasicMinter.s.sol:DeployCrowdmuseBasicMinter --rpc-url YOUR_RPC_URL --private-key YOUR_PRIVATE_KEY --broadcast --verify --etherscan-api-key BLOCK_SCANNER_API_KEY -vvvv
+```
+
 ## Contributing
 
 We're looking for developers to help us build out tests using Hardhat & Foundry. This project is a great opportunity for anyone looking to upskill in Solidity, learn from other developers and get a public record of their progress. Feel free to contact one of the team or raise a pull request. My telegram is Amirjab21 in case you want to chat about anything.
