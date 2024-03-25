@@ -140,4 +140,41 @@ contract CrowdmuseProductTest is Test, ICrowdmuseProduct {
 
         vm.stopPrank();
     }
+
+    function test_buyPrepaidNFT() public {
+        address recipient = address(0x123);
+        bytes32 garmentType = keccak256(abi.encodePacked("size:one"));
+        uint256 quantity = 1;
+        uint256 initialGarmentsRemaining = product.inventoryGarmentsRemaining(
+            garmentType
+        );
+        uint256 initialRecipientBalance = product.balanceOf(recipient);
+
+        vm.prank(admin);
+        uint256 tokenId = product.buyPrepaidNFT(
+            recipient,
+            garmentType,
+            quantity
+        );
+        uint256 newGarmentsRemaining = product.inventoryGarmentsRemaining(
+            garmentType
+        );
+        uint256 newRecipientBalance = product.balanceOf(recipient);
+        assertEq(
+            newGarmentsRemaining,
+            initialGarmentsRemaining - quantity,
+            "Garment inventory should decrease by the quantity minted."
+        );
+        assertEq(
+            newRecipientBalance,
+            initialRecipientBalance + quantity,
+            "Recipient should have more NFTs after minting."
+        );
+        bytes32 mintedNFTGarmentType = product.NFTBySize(tokenId);
+        assertEq(
+            mintedNFTGarmentType,
+            garmentType,
+            "The minted NFT should have the correct garment type."
+        );
+    }
 }
