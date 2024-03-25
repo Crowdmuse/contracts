@@ -5,7 +5,7 @@ import "forge-std/Script.sol";
 import "../src/CrowdmuseProduct.sol";
 import "../src/interfaces/ICrowdmuseProduct.sol";
 
-contract DeployCrowdmuseProduct is Script, ICrowdmuseProduct {
+contract DeployCrowdmuseProduct is Script {
     function run() external {
         vm.startBroadcast();
 
@@ -13,17 +13,18 @@ contract DeployCrowdmuseProduct is Script, ICrowdmuseProduct {
         contributionValues[0] = 1000;
         address[] memory taskContributors = new address[](1);
         taskContributors[0] = 0x35CE1fb8CAa3758190ac65EDbcBC9647b8800e8f;
-        TaskStatus[] memory taskStatuses = new TaskStatus[](1);
-        taskStatuses[0] = TaskStatus.Complete;
+        ICrowdmuseProduct.TaskStatus[]
+            memory taskStatuses = new ICrowdmuseProduct.TaskStatus[](1);
+        taskStatuses[0] = ICrowdmuseProduct.TaskStatus.Complete;
         uint256[] memory taskContributorTypes = new uint256[](1);
         taskContributorTypes[0] = 1;
-        Task memory task = Task({
+        ICrowdmuseProduct.Task memory task = ICrowdmuseProduct.Task({
             contributionValues: contributionValues,
             taskContributors: taskContributors,
             taskStatus: taskStatuses,
             taskContributorTypes: taskContributorTypes
         });
-        Token memory token = Token({
+        ICrowdmuseProduct.Token memory token = ICrowdmuseProduct.Token({
             productName: "crowdmuse-product",
             productSymbol: "CMUSE",
             baseUri: "ipfs://cid",
@@ -34,8 +35,9 @@ contract DeployCrowdmuseProduct is Script, ICrowdmuseProduct {
         uint96 garmentsAvailable = type(uint96).max;
         string memory inventoryKeyName = "crowdmuse-product-inventory-key";
 
-        Inventory[] memory inventory = new Inventory[](1);
-        inventory[0] = Inventory({
+        ICrowdmuseProduct.Inventory[]
+            memory inventory = new ICrowdmuseProduct.Inventory[](1);
+        inventory[0] = ICrowdmuseProduct.Inventory({
             keyName: "size:one",
             garmentsRemaining: garmentsAvailable
         });
