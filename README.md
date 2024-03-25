@@ -20,7 +20,7 @@ forge script script/DeployCrowdmuseProduct.s.sol:DeployCrowdmuseProduct --rpc-ur
 
 ## Deploy - CrowdmuseBasicMinter
 
-- base-sepolia: [0x6F9308addD0AEC2CfCC81930ED8c2370092D8c38](https://sepolia.basescan.org/address/0x6F9308addD0AEC2CfCC81930ED8c2370092D8c38#code)
+- base-sepolia: [0xa701deC0D72ae774f00b012744fEB4E64eDC2a2b](https://sepolia.basescan.org/address/0xa701deC0D72ae774f00b012744fEB4E64eDC2a2b#code)
 
 ```
 forge script script/DeployCrowdmuseBasicMinter.s.sol:DeployCrowdmuseBasicMinter --rpc-url YOUR_RPC_URL --private-key YOUR_PRIVATE_KEY --broadcast --verify --etherscan-api-key BLOCK_SCANNER_API_KEY -vvvv
