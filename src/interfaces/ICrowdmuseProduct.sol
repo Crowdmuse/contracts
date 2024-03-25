@@ -79,4 +79,16 @@ interface ICrowdmuseProduct {
         TaskStatus taskStatus;
         uint256 taskType;
     }
+
+    /// @notice Allows the admin to mint NFTs for a specific garment type and quantity without payment
+    /// @dev Used for promotional or administrative purposes
+    /// @param _to Recipient of the NFTs
+    /// @param garmentType Type of garment (NFT) being minted
+    /// @param _quantity Quantity of NFTs to mint
+    /// @return _tokenId The ID of the last token minted
+    function buyPrepaidNFT(
+        address _to,
+        bytes32 garmentType,
+        uint256 _quantity
+    ) external returns (uint256);
 }

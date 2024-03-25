@@ -7,9 +7,9 @@ import {ICrowdmuseProduct} from "../../src/interfaces/ICrowdmuseProduct.sol";
 import {CrowdmuseBasicMinter} from "../../src/minters/CrowdmuseBasicMinter.sol";
 import {MockERC20} from "../mocks/MockERC20.sol";
 
-contract CrowdmuseBasicMinterTest is Test, ICrowdmuseProduct {
-    CrowdmuseProduct internal target;
-    CrowdmuseBasicMinter internal fixedPriceErc20;
+contract CrowdmuseBasicMinterTest is Test {
+    CrowdmuseProduct internal product;
+    CrowdmuseBasicMinter internal minter;
     MockERC20 internal usdc;
     address payable internal admin = payable(address(0x999));
     address payable internal protocolFeeRecipient = payable(address(0x7777777));
@@ -35,13 +35,11 @@ contract CrowdmuseBasicMinterTest is Test, ICrowdmuseProduct {
         tokenRecipient = makeAddr("tokenRecipient");
         fundsRecipient = makeAddr("fundsRecipient");
 
-        fixedPriceErc20 = new CrowdmuseBasicMinter(protocolFeeRecipient);
+        minter = new CrowdmuseBasicMinter(protocolFeeRecipient);
         vm.prank(admin);
-        usdc = new MockERC20("MockUSD", "MUSD");
-
         admin = payable(address(this));
         usdc = new MockERC20("MockUSD", "MUSD");
-        Token memory tokenInfo = Token({
+        ICrowdmuseProduct.Token memory tokenInfo = ICrowdmuseProduct.Token({
             productName: "MyProduct",
             productSymbol: "MPROD",
             baseUri: "ipfs://baseuri/",
@@ -51,23 +49,25 @@ contract CrowdmuseBasicMinterTest is Test, ICrowdmuseProduct {
         contributionValues[0] = 1000;
         address[] memory taskContributors = new address[](1);
         taskContributors[0] = admin;
-        TaskStatus[] memory taskStatuses = new TaskStatus[](1);
-        taskStatuses[0] = TaskStatus.Complete;
+        ICrowdmuseProduct.TaskStatus[]
+            memory taskStatuses = new ICrowdmuseProduct.TaskStatus[](1);
+        taskStatuses[0] = ICrowdmuseProduct.TaskStatus.Complete;
         uint256[] memory taskContributorTypes = new uint256[](1);
         taskContributorTypes[0] = 1;
-        Task memory initialTask = Task({
+        ICrowdmuseProduct.Task memory initialTask = ICrowdmuseProduct.Task({
             contributionValues: contributionValues,
             taskContributors: taskContributors,
             taskStatus: taskStatuses,
             taskContributorTypes: taskContributorTypes
         });
-        Inventory[] memory initialInventory = new Inventory[](1);
-        initialInventory[0] = Inventory({
+        ICrowdmuseProduct.Inventory[]
+            memory initialInventory = new ICrowdmuseProduct.Inventory[](1);
+        initialInventory[0] = ICrowdmuseProduct.Inventory({
             keyName: "size:one",
             garmentsRemaining: 100
         });
 
-        target = new CrowdmuseProduct(
+        product = new CrowdmuseProduct(
             500, // _feeNumerator
             10000, // _contributorTotalSupply
             100, // _garmentsAvailable
@@ -83,82 +83,57 @@ contract CrowdmuseBasicMinterTest is Test, ICrowdmuseProduct {
     }
 
     function test_ContractName() external view {
-        assertEq(fixedPriceErc20.contractName(), "Crowdmuse Basic Minter");
+        assertEq(minter.contractName(), "Crowdmuse Basic Minter");
     }
 
     function test_Version() external view {
-        assertEq(fixedPriceErc20.contractVersion(), "0.0.1");
+        assertEq(minter.contractVersion(), "0.0.1");
     }
 
-    // function test_MintFlow() external {
-    //     vm.startPrank(admin);
+    function test_MintFlow() external {
+        address recipient = address(0x123);
+        bytes32 garmentType = keccak256(abi.encodePacked("size:one"));
+        uint256 quantity = 1;
+        uint256 initialGarmentsRemaining = product.inventoryGarmentsRemaining(
+            garmentType
+        );
+        uint256 initialRecipientBalance = product.balanceOf(recipient);
 
-    //     // GRANT MINTER ADMIN ROLE - adminMint (skip zora fee)
-    //     target.addPermission(
-    //         newTokenId,
-    //         address(fixedPriceErc20),
-    //         target.PERMISSION_BIT_ADMIN()
-    //     );
-    //     uint96 pricePerToken = 100;
+        address target = address(product);
+        address mintTo = recipient;
+        string memory comment = "test comment";
+        vm.prank(admin);
+        product.changeAdmin(address(minter));
 
-    //     // CREATOR CALLS callSale on CREATORCROP
-    //     vm.expectEmit(true, true, true, true);
-    //     emit SaleSet(
-    //         address(target),
-    //         newTokenId,
-    //         CrowdmuseBasicMinter.SalesConfig({
-    //             pricePerToken: pricePerToken,
-    //             saleStart: 0,
-    //             saleEnd: type(uint64).max,
-    //             maxTokensPerAddress: 0,
-    //             fundsRecipient: fundsRecipient,
-    //             erc20Address: address(usdc)
-    //         })
-    //     );
-    //     target.callSale(
-    //         newTokenId,
-    //         fixedPriceErc20,
-    //         abi.encodeWithSelector(
-    //             CrowdmuseBasicMinter.setSale.selector,
-    //             newTokenId,
-    //             CrowdmuseBasicMinter.SalesConfig({
-    //                 pricePerToken: pricePerToken,
-    //                 saleStart: 0,
-    //                 saleEnd: type(uint64).max,
-    //                 maxTokensPerAddress: 0,
-    //                 fundsRecipient: fundsRecipient,
-    //                 erc20Address: address(usdc)
-    //             })
-    //         )
-    //     );
-    //     vm.stopPrank();
-
-    //     // AIRDROP USDC
-    //     uint256 numTokens = 10;
-    //     uint256 totalValue = (pricePerToken * numTokens);
-    //     vm.prank(admin);
-    //     usdc.mint(tokenRecipient, totalValue);
-
-    //     // COLLECTOR APPROVED USDC for MINTER
-    //     vm.startPrank(tokenRecipient);
-    //     usdc.approve(address(fixedPriceErc20), totalValue);
-
-    //     // COLLECTOR CALL requestMint
-    //     fixedPriceErc20.requestMint(
-    //         address(target),
-    //         newTokenId,
-    //         numTokens,
-    //         0,
-    //         abi.encode(tokenRecipient, "")
-    //     );
-
-    //     // VERIFY COLLECT
-    //     assertEq(target.balanceOf(tokenRecipient, newTokenId), numTokens);
-
-    //     // VERIFY USDC PAYMENT
-    //     test_USDCPayouts(totalValue);
-    //     vm.stopPrank();
-    // }
+        vm.prank(tokenRecipient);
+        uint256 tokenId = minter.mint(
+            target,
+            mintTo,
+            garmentType,
+            quantity,
+            comment
+        );
+        uint256 newGarmentsRemaining = product.inventoryGarmentsRemaining(
+            garmentType
+        );
+        uint256 newRecipientBalance = product.balanceOf(recipient);
+        assertEq(
+            newGarmentsRemaining,
+            initialGarmentsRemaining - quantity,
+            "Garment inventory should decrease by the quantity minted."
+        );
+        assertEq(
+            newRecipientBalance,
+            initialRecipientBalance + quantity,
+            "Recipient should have more NFTs after minting."
+        );
+        bytes32 mintedNFTGarmentType = product.NFTBySize(tokenId);
+        assertEq(
+            mintedNFTGarmentType,
+            garmentType,
+            "The minted NFT should have the correct garment type."
+        );
+    }
 
     // function test_MintBatchFlow() external {
     //     vm.startPrank(admin);

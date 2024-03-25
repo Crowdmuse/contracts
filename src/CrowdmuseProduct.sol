@@ -282,7 +282,7 @@ contract CrowdmuseProduct is
         address _to,
         bytes32 garmentType,
         uint256 _quantity
-    ) public nonReentrant onlyAdmin returns (uint256 _tokenId) {
+    ) external nonReentrant onlyAdmin returns (uint256 _tokenId) {
         require(_to != address(0), "Address must not be zero");
         require(
             productStatus == ProductStatus.Complete,
