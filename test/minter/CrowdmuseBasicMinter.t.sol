@@ -92,10 +92,6 @@ contract CrowdmuseBasicMinterTest is Test, ICrowdmuseProduct {
 
     // function test_MintFlow() external {
     //     vm.startPrank(admin);
-    //     uint256 newTokenId = target.setupNewToken(
-    //         "https://zora.co/testing/token.json",
-    //         10
-    //     );
 
     //     // GRANT MINTER ADMIN ROLE - adminMint (skip zora fee)
     //     target.addPermission(
