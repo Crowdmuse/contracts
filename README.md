@@ -18,17 +18,9 @@ A network of brands, designers, pattern makers + manufacturers; MetaFactory, [a]
 forge script script/DeployCrowdmuseProduct.s.sol:DeployCrowdmuseProduct --rpc-url YOUR_RPC_URL --private-key YOUR_PRIVATE_KEY --broadcast --verify --etherscan-api-key BLOCK_SCANNER_API_KEY -vvvv
 ```
 
-## Deploy - CrowdmuseBasicMinter
-
-- base-sepolia: [0xa701deC0D72ae774f00b012744fEB4E64eDC2a2b](https://sepolia.basescan.org/address/0xa701deC0D72ae774f00b012744fEB4E64eDC2a2b#code)
-
-```
-forge script script/DeployCrowdmuseBasicMinter.s.sol:DeployCrowdmuseBasicMinter --rpc-url YOUR_RPC_URL --private-key YOUR_PRIVATE_KEY --broadcast --verify --etherscan-api-key BLOCK_SCANNER_API_KEY -vvvv
-```
-
 ## Deploy - CrowdmuseEscrowMinter
 
-- base-sepolia: [0xa701deC0D72ae774f00b012744fEB4E64eDC2a2b](https://sepolia.basescan.org/address/0xa701deC0D72ae774f00b012744fEB4E64eDC2a2b#code)
+- base-sepolia: [0x3c67e9c26c42AE1a7C6AbCa33aC8610EA8a1B8D6](https://sepolia.basescan.org/address/0x3c67e9c26c42AE1a7C6AbCa33aC8610EA8a1B8D6#code)
 
 ```
 forge script script/DeployCrowdmuseEscrowMinter.s.sol:DeployCrowdmuseEscrowMinter --rpc-url YOUR_RPC_URL --private-key YOUR_PRIVATE_KEY --broadcast --verify --etherscan-api-key BLOCK_SCANNER_API_KEY -vvvv
