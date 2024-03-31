@@ -13,6 +13,7 @@ contract CrowdmuseEscrowMinterTest is Test, IMinterStorage {
     CrowdmuseEscrowMinter internal minter;
     MockERC20 internal usdc;
     address payable internal admin = payable(address(0x999));
+    address payable internal nonAdmin = payable(address(0x666));
     address payable internal protocolFeeRecipient = payable(address(0x7777777));
     address internal zora;
     address internal tokenRecipient;
@@ -32,8 +33,7 @@ contract CrowdmuseEscrowMinterTest is Test, IMinterStorage {
         fundsRecipient = makeAddr("fundsRecipient");
 
         minter = new CrowdmuseEscrowMinter();
-        vm.prank(admin);
-        admin = payable(address(this));
+        vm.startPrank(admin);
         usdc = new MockERC20("MockUSD", "MUSD");
         ICrowdmuseProduct.Token memory tokenInfo = ICrowdmuseProduct.Token({
             productName: "MyProduct",
@@ -76,6 +76,7 @@ contract CrowdmuseEscrowMinterTest is Test, IMinterStorage {
             admin,
             1 ether // _buyNFTPrice
         );
+        vm.stopPrank();
     }
 
     function test_ContractName() external view {
@@ -86,7 +87,7 @@ contract CrowdmuseEscrowMinterTest is Test, IMinterStorage {
         assertEq(minter.contractVersion(), "0.0.1");
     }
 
-    function test_SetSale() external {
+    function test_SetSale_OnlyOwner() external {
         uint256 tokenId = 1;
         SalesConfig memory salesConfig = SalesConfig({
             saleStart: uint64(block.timestamp),
@@ -97,15 +98,18 @@ contract CrowdmuseEscrowMinterTest is Test, IMinterStorage {
             erc20Address: address(0x333)
         });
 
-        // Expect the SaleSet event to be emitted with the correct parameters.
-        vm.expectEmit(true, true, true, false);
-        emit SaleSet(address(this), tokenId, salesConfig);
+        // Attempt to set sale config as a non-owner should fail
+        vm.prank(address(nonAdmin));
+        vm.expectRevert("Caller is not the owner");
+        minter.setSale(address(product), tokenId, salesConfig);
 
-        minter.setSale(tokenId, salesConfig);
+        // Set sale config as the owner should succeed
+        vm.prank(admin); // Assuming `admin` is the owner
+        minter.setSale(address(product), tokenId, salesConfig);
 
-        // Retrieve the sales configuration for the tokenId and msg.sender from the contract.
+        // Retrieve and validate the set sales configuration
         SalesConfig memory retrievedConfig = minter.sale(
-            address(this),
+            address(product),
             tokenId
         );
 

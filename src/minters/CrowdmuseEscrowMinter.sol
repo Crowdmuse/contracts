@@ -2,6 +2,7 @@
 pragma solidity ^0.8.10;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {IMinterErrors} from "../interfaces/IMinterErrors.sol";
 import {ICrowdmuseProduct} from "../interfaces/ICrowdmuseProduct.sol";
 import {IMinterStorage} from "../interfaces/IMinterStorage.sol";
@@ -87,11 +88,23 @@ contract CrowdmuseEscrowMinter is IMinterErrors, IMinterStorage {
     }
 
     /// @notice Sets the sale config for a given token
-    function setSale(uint256 tokenId, SalesConfig memory salesConfig) external {
-        salesConfigs[msg.sender][tokenId] = salesConfig;
+    /// @param target The target contract for which the sale config is being set
+    /// @param tokenId The token ID for which the sale config is being set
+    /// @param salesConfig The sales configuration
+    function setSale(
+        address target,
+        uint256 tokenId,
+        SalesConfig memory salesConfig
+    ) external {
+        require(
+            Ownable(target).owner() == msg.sender,
+            "Caller is not the owner"
+        );
+
+        salesConfigs[target][tokenId] = salesConfig;
 
         // Emit event
-        emit SaleSet(msg.sender, tokenId, salesConfig);
+        emit SaleSet(target, tokenId, salesConfig);
     }
 
     /// @notice Returns the sale config for a given token
