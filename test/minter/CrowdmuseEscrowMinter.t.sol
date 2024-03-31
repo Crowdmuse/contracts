@@ -88,7 +88,6 @@ contract CrowdmuseEscrowMinterTest is Test, IMinterStorage {
     }
 
     function test_SetSale_OnlyOwner() external {
-        uint256 tokenId = 1;
         SalesConfig memory salesConfig = SalesConfig({
             saleStart: uint64(block.timestamp),
             saleEnd: uint64(block.timestamp + 1 days),
@@ -101,17 +100,12 @@ contract CrowdmuseEscrowMinterTest is Test, IMinterStorage {
         // Attempt to set sale config as a non-owner should fail
         vm.prank(address(nonAdmin));
         vm.expectRevert("Caller is not the owner");
-        minter.setSale(address(product), tokenId, salesConfig);
+        minter.setSale(address(product), salesConfig);
 
-        // Set sale config as the owner should succeed
-        vm.prank(admin); // Assuming `admin` is the owner
-        minter.setSale(address(product), tokenId, salesConfig);
+        _setSale(salesConfig);
 
         // Retrieve and validate the set sales configuration
-        SalesConfig memory retrievedConfig = minter.sale(
-            address(product),
-            tokenId
-        );
+        SalesConfig memory retrievedConfig = minter.sale(address(product));
 
         // Assertions to check if the stored salesConfig matches the one we set.
         assertEq(
@@ -147,27 +141,39 @@ contract CrowdmuseEscrowMinterTest is Test, IMinterStorage {
     }
 
     function test_MintFlow() external {
-        address recipient = address(0x123);
+        usdc.mint(tokenRecipient, 10 ether);
         bytes32 garmentType = keccak256(abi.encodePacked("size:one"));
         uint256 quantity = 1;
         uint256 initialGarmentsRemaining = product.inventoryGarmentsRemaining(
             garmentType
         );
-        uint256 initialRecipientBalance = product.balanceOf(recipient);
+        uint256 initialRecipientBalance = product.balanceOf(tokenRecipient);
+        uint256 initialUsdcBalanceRecipient = usdc.balanceOf(tokenRecipient);
+        uint256 initialUsdcBalanceMinter = usdc.balanceOf(address(minter));
 
         address target = address(product);
-        address mintTo = recipient;
         string memory comment = "test comment";
         vm.prank(admin);
         product.changeAdmin(address(minter));
 
-        vm.startPrank(tokenRecipient);
         uint256 newTokenId = product.totalSupply() + 1;
+        SalesConfig memory salesConfig = SalesConfig({
+            saleStart: uint64(0),
+            saleEnd: uint64(block.timestamp + 1 days),
+            maxTokensPerAddress: uint64(5),
+            pricePerToken: uint96(1 ether),
+            fundsRecipient: fundsRecipient,
+            erc20Address: address(usdc)
+        });
+        _setSale(salesConfig);
+
+        vm.startPrank(tokenRecipient);
+        usdc.approve(address(minter), salesConfig.pricePerToken);
         vm.expectEmit(true, true, true, true);
-        emit MintComment(mintTo, target, newTokenId, quantity, comment);
+        emit MintComment(tokenRecipient, target, newTokenId, quantity, comment);
         uint256 tokenId = minter.mint(
             target,
-            mintTo,
+            tokenRecipient,
             garmentType,
             quantity,
             comment
@@ -177,7 +183,7 @@ contract CrowdmuseEscrowMinterTest is Test, IMinterStorage {
         uint256 newGarmentsRemaining = product.inventoryGarmentsRemaining(
             garmentType
         );
-        uint256 newRecipientBalance = product.balanceOf(recipient);
+        uint256 newRecipientBalance = product.balanceOf(tokenRecipient);
         assertEq(
             newGarmentsRemaining,
             initialGarmentsRemaining - quantity,
@@ -188,11 +194,27 @@ contract CrowdmuseEscrowMinterTest is Test, IMinterStorage {
             initialRecipientBalance + quantity,
             "Recipient should have more NFTs after minting."
         );
+        assertEq(
+            usdc.balanceOf(tokenRecipient),
+            initialUsdcBalanceRecipient - salesConfig.pricePerToken * quantity,
+            "USDC should be deducted from the buyer."
+        );
+        assertEq(
+            usdc.balanceOf(address(minter)),
+            initialUsdcBalanceMinter + salesConfig.pricePerToken * quantity,
+            "USDC should be added to the funds recipient."
+        );
         bytes32 mintedNFTGarmentType = product.NFTBySize(tokenId);
         assertEq(
             mintedNFTGarmentType,
             garmentType,
             "The minted NFT should have the correct garment type."
         );
+    }
+
+    function _setSale(SalesConfig memory salesConfig) internal {
+        // Set sale config as the owner should succeed
+        vm.prank(admin); // Assuming `admin` is the owner
+        minter.setSale(address(product), salesConfig);
     }
 }

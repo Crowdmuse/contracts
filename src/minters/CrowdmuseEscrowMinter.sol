@@ -3,15 +3,20 @@ pragma solidity ^0.8.10;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {LimitedMintPerAddress} from "../utils/LimitedMintPerAddress.sol";
 import {IMinterErrors} from "../interfaces/IMinterErrors.sol";
 import {ICrowdmuseProduct} from "../interfaces/ICrowdmuseProduct.sol";
 import {IMinterStorage} from "../interfaces/IMinterStorage.sol";
 
 /// @title CrowdmuseEscrowMinter
 /// @notice A minter that allows for basic purchasing on Crowdmuse
-contract CrowdmuseEscrowMinter is IMinterErrors, IMinterStorage {
+contract CrowdmuseEscrowMinter is
+    LimitedMintPerAddress,
+    IMinterErrors,
+    IMinterStorage
+{
     // target -> tokenId -> settings
-    mapping(address => mapping(uint256 => SalesConfig)) internal salesConfigs;
+    mapping(address => SalesConfig) internal salesConfigs;
 
     /// @notice Retrieves the contract metadata URI
     /// @return A string representing the metadata URI for this contract
@@ -76,6 +81,39 @@ contract CrowdmuseEscrowMinter is IMinterErrors, IMinterStorage {
         uint256 quantity,
         string memory comment
     ) internal returns (uint256 tokenId) {
+        SalesConfig storage config = salesConfigs[target];
+        uint256 totalPrice = config.pricePerToken * quantity;
+        // If sales config does not exist this first check will always fail.
+
+        // Check sale end
+        if (block.timestamp > config.saleEnd) {
+            revert SaleEnded();
+        }
+
+        // Check sale start
+        if (block.timestamp < config.saleStart) {
+            revert SaleHasNotStarted();
+        }
+
+        // Check USDC approval amount
+        if (
+            totalPrice >
+            IERC20(config.erc20Address).allowance(msg.sender, address(this))
+        ) {
+            revert WrongValueSent();
+        }
+
+        // Check minted per address limit
+        if (config.maxTokensPerAddress > 0) {
+            _requireMintNotOverLimitAndUpdate(
+                config.maxTokensPerAddress,
+                quantity,
+                target,
+                tokenId,
+                mintTo
+            );
+        }
+
         tokenId = ICrowdmuseProduct(target).buyPrepaidNFT(
             mintTo,
             garmentType,
@@ -85,33 +123,33 @@ contract CrowdmuseEscrowMinter is IMinterErrors, IMinterStorage {
         if (bytes(comment).length > 0) {
             emit MintComment(mintTo, target, tokenId, quantity, comment);
         }
+
+        IERC20(config.erc20Address).transferFrom(
+            msg.sender,
+            address(this),
+            totalPrice
+        );
     }
 
     /// @notice Sets the sale config for a given token
     /// @param target The target contract for which the sale config is being set
-    /// @param tokenId The token ID for which the sale config is being set
     /// @param salesConfig The sales configuration
-    function setSale(
-        address target,
-        uint256 tokenId,
-        SalesConfig memory salesConfig
-    ) external {
+    function setSale(address target, SalesConfig memory salesConfig) external {
         require(
             Ownable(target).owner() == msg.sender,
             "Caller is not the owner"
         );
 
-        salesConfigs[target][tokenId] = salesConfig;
+        salesConfigs[target] = salesConfig;
 
         // Emit event
-        emit SaleSet(target, tokenId, salesConfig);
+        emit SaleSet(target, salesConfig);
     }
 
     /// @notice Returns the sale config for a given token
     function sale(
-        address tokenContract,
-        uint256 tokenId
+        address tokenContract
     ) external view returns (SalesConfig memory) {
-        return salesConfigs[tokenContract][tokenId];
+        return salesConfigs[tokenContract];
     }
 }

@@ -17,9 +17,5 @@ interface IMinterStorage {
         address erc20Address;
     }
 
-    event SaleSet(
-        address indexed mediaContract,
-        uint256 indexed tokenId,
-        SalesConfig salesConfig
-    );
+    event SaleSet(address indexed mediaContract, SalesConfig salesConfig);
 }
