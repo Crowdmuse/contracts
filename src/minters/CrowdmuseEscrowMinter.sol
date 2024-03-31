@@ -3,17 +3,18 @@ pragma solidity ^0.8.10;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {IERC721A} from "erc721a/contracts/IERC721A.sol";
 import {LimitedMintPerAddress} from "../utils/LimitedMintPerAddress.sol";
 import {IMinterErrors} from "../interfaces/IMinterErrors.sol";
 import {ICrowdmuseProduct} from "../interfaces/ICrowdmuseProduct.sol";
-import {ICrowdmuseEscrow} from "../interfaces/ICrowdmuseEscrow.sol";
+import {ICrowdmuseEscrowMinter} from "../interfaces/ICrowdmuseEscrowMinter.sol";
 import {IMinterStorage} from "../interfaces/IMinterStorage.sol";
 
 /// @title CrowdmuseEscrowMinter
 /// @notice A minter that allows for basic purchasing on Crowdmuse
 contract CrowdmuseEscrowMinter is
     LimitedMintPerAddress,
-    ICrowdmuseEscrow,
+    ICrowdmuseEscrowMinter,
     IMinterErrors,
     IMinterStorage
 {
@@ -182,6 +183,53 @@ contract CrowdmuseEscrowMinter is
         delete salesConfigs[target];
     }
 
+    /// @notice Refunds escrowed funds to the owners of each token in a product.
+    /// Iterates over each tokenId from 1 to product.totalSupply(), paying each product.ownerOf(tokenId).
+    /// The amount paid is determined by config.pricePerToken.
+    /// Can only be called by the owner of the target product contract.
+    /// Resets the product's escrow balance after the refund process.
+    /// @param target The address of the target product contract whose escrowed funds are to be refunded.
+    function refund(address target) external onlyOwner(target) {
+        SalesConfig storage config = salesConfigs[target];
+        IERC721A productContract = IERC721A(target);
+        uint256 totalSupply = productContract.totalSupply();
+
+        for (uint256 tokenId = 1; tokenId <= totalSupply; tokenId++) {
+            address owner = productContract.ownerOf(tokenId);
+
+            // Ensure the owner is valid and the price per token is not zero to avoid unnecessary transfers
+            if (owner != address(0) && config.pricePerToken > 0) {
+                IERC20(config.erc20Address).transfer(
+                    owner,
+                    config.pricePerToken
+                );
+                // Decrement the escrow balance for each payment made
+                balanceOf[target] = balanceOf[target] > config.pricePerToken
+                    ? balanceOf[target] - config.pricePerToken
+                    : 0;
+            }
+        }
+
+        // After refunding all owners, ensure any remaining balance due to rounding or errors is cleared.
+        if (balanceOf[target] > 0) {
+            IERC20(config.erc20Address).transfer(
+                config.fundsRecipient,
+                balanceOf[target]
+            );
+            balanceOf[target] = 0;
+        }
+
+        // Optionally, you can clear the sales configuration for the product after refunding
+        // delete salesConfigs[target];
+
+        // Emit an event to log the refund action
+        emit EscrowRefunded(
+            target,
+            config.erc20Address,
+            totalSupply * config.pricePerToken
+        );
+    }
+
     /// @dev Modifier to restrict functions to the owner of the target contract.
     /// Throws `OwnableUnauthorizedAccount` if the caller is not the owner.
     /// @param target Address of the target contract to check ownership against.
@@ -192,5 +240,4 @@ contract CrowdmuseEscrowMinter is
 
         _;
     }
-    // TODO: add method for refunding escrowed funds
 }

@@ -5,7 +5,7 @@ import "forge-std/Test.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {CrowdmuseProduct} from "../../src/CrowdmuseProduct.sol";
 import {ICrowdmuseProduct} from "../../src/interfaces/ICrowdmuseProduct.sol";
-import {ICrowdmuseEscrow} from "../../src/interfaces/ICrowdmuseEscrow.sol";
+import {ICrowdmuseEscrowMinter} from "../../src/interfaces/ICrowdmuseEscrowMinter.sol";
 import {IMinterStorage} from "../../src/interfaces/IMinterStorage.sol";
 import {IMinterErrors} from "../../src/interfaces/IMinterErrors.sol";
 import {CrowdmuseEscrowMinter} from "../../src/minters/CrowdmuseEscrowMinter.sol";
@@ -13,7 +13,7 @@ import {MockERC20} from "../mocks/MockERC20.sol";
 
 contract CrowdmuseEscrowMinterTest is
     Test,
-    ICrowdmuseEscrow,
+    ICrowdmuseEscrowMinter,
     IMinterStorage,
     IMinterErrors
 {
@@ -22,7 +22,6 @@ contract CrowdmuseEscrowMinterTest is
     MockERC20 internal usdc;
     address payable internal admin = payable(address(0x999));
     address payable internal nonAdmin = payable(address(0x666));
-    address payable internal protocolFeeRecipient = payable(address(0x7777777));
     address internal tokenRecipient;
     address internal fundsRecipient;
 
@@ -318,6 +317,55 @@ contract CrowdmuseEscrowMinterTest is
         );
     }
 
+    function test_Refund_EscrowFundsReturned(address recipient) external {
+        vm.assume(recipient != address(0));
+        _setupEscrowMinter();
+        _mintTo(recipient, 10); // Simulate a deposit scenario
+
+        // Assume funds have been escrowed for 'product'
+        uint256 initialEscrowBalance = minter.balanceOf(address(product));
+        require(initialEscrowBalance > 0, "No funds in escrow to refund");
+
+        // Execute refund by the product owner
+        _refundAsAdmin();
+
+        // Assertions after refund
+        uint256 finalEscrowBalance = minter.balanceOf(address(product));
+        uint256 finalDepositorBalance = usdc.balanceOf(recipient);
+
+        assertEq(
+            finalEscrowBalance,
+            0,
+            "Escrow balance should be zero after refund"
+        );
+        assertTrue(
+            finalDepositorBalance == initialEscrowBalance,
+            "Depositor should have received a refund"
+        );
+    }
+
+    function test_Refund_EscrowRefundedEventEmitted(
+        address recipient
+    ) external {
+        // Setup: Deploy contracts, setup a product, and simulate sales to accumulate escrow
+        _setupEscrowMinter();
+        _mintTo(recipient, 10); // Simulate a deposit scenario
+
+        // Calculate expected refund based on salesConfig.pricePerToken and product.totalSupply()
+        uint256 expectedTotalRefunded = minter.balanceOf(address(product));
+
+        // Expect the EscrowRefunded event to be emitted with correct parameters
+        vm.expectEmit(true, true, true, true);
+        emit EscrowRefunded(
+            address(product),
+            address(usdc),
+            expectedTotalRefunded
+        );
+
+        // Execute refund by the product owner
+        _refundAsAdmin();
+    }
+
     // TEST UTILS
     function _setupEscrowMinter() internal {
         // Set up the sales configuration for the product
@@ -351,27 +399,29 @@ contract CrowdmuseEscrowMinterTest is
     }
 
     function _mintToTokenRecipient(uint256 quantity) internal {
+        _mintTo(tokenRecipient, quantity);
+    }
+
+    function _mintTo(address to, uint256 quantity) internal {
+        vm.assume(!_isContract(to));
+
         // Set up the minting parameters
         bytes32 garmentType = keccak256(abi.encodePacked("size:one"));
         uint256 pricePerToken = minter.sale(address(product)).pricePerToken;
 
         // Approve the minter contract to spend the buyer's USDC
-        vm.startPrank(tokenRecipient);
-        usdc.mint(tokenRecipient, 10 ether);
+        vm.startPrank(to);
+        usdc.mint(to, 10 ether);
         usdc.approve(address(minter), pricePerToken * quantity);
 
         // Expect the EscrowDeposit event to be emitted
         vm.expectEmit(true, true, true, true);
-        emit EscrowDeposit(
-            address(product),
-            tokenRecipient,
-            pricePerToken * quantity
-        );
+        emit EscrowDeposit(address(product), to, pricePerToken * quantity);
 
         // Call the mint function
         minter.mint(
             address(product),
-            tokenRecipient,
+            to,
             garmentType,
             quantity,
             "Test comment"
@@ -396,5 +446,19 @@ contract CrowdmuseEscrowMinterTest is
     function _redeemAsAdmin() internal {
         vm.prank(admin);
         minter.redeem(address(product));
+    }
+
+    function _refundAsAdmin() internal {
+        vm.prank(admin);
+        minter.refund(address(product));
+    }
+
+    function _isContract(address account) internal returns (bool isContract) {
+        uint256 size;
+        assembly {
+            size := extcodesize(account)
+        }
+
+        isContract = size > 0;
     }
 }
