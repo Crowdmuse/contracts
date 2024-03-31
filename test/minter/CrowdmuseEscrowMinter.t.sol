@@ -138,8 +138,7 @@ contract CrowdmuseEscrowMinterTest is
         _setupEscrowMinter();
 
         // Set the sale with the original configuration
-        vm.prank(admin);
-        minter.setSale(address(product));
+        _setSale();
 
         // Original sales configuration for comparison
         SalesConfig memory expectedConfig = _getExpectedSaleConfig();
