@@ -6,18 +6,20 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {LimitedMintPerAddress} from "../utils/LimitedMintPerAddress.sol";
 import {IMinterErrors} from "../interfaces/IMinterErrors.sol";
 import {ICrowdmuseProduct} from "../interfaces/ICrowdmuseProduct.sol";
+import {ICrowdmuseEscrow} from "../interfaces/ICrowdmuseEscrow.sol";
 import {IMinterStorage} from "../interfaces/IMinterStorage.sol";
 
 /// @title CrowdmuseEscrowMinter
 /// @notice A minter that allows for basic purchasing on Crowdmuse
 contract CrowdmuseEscrowMinter is
     LimitedMintPerAddress,
+    ICrowdmuseEscrow,
     IMinterErrors,
     IMinterStorage
 {
-    // target -> tokenId -> settings
+    // product -> settings
     mapping(address => SalesConfig) internal salesConfigs;
-    /// @notice An escrow's balance
+    /// @notice A product's escrow balance
     mapping(address => uint256) public balanceOf;
 
     /// @notice Retrieves the contract metadata URI
@@ -37,20 +39,6 @@ contract CrowdmuseEscrowMinter is
     function contractVersion() external pure returns (string memory) {
         return "0.0.1";
     }
-
-    /// @dev Emitted when a mint operation includes a comment
-    /// @param sender The address that initiated the mint operation
-    /// @param tokenContract The address of the token contract where the mint occurred
-    /// @param tokenId The ID of the token that was minted
-    /// @param quantity The quantity of tokens minted
-    /// @param comment A comment provided during the minting process
-    event MintComment(
-        address indexed sender,
-        address indexed tokenContract,
-        uint256 indexed tokenId,
-        uint256 quantity,
-        string comment
-    );
 
     /// @notice Mints tokens to a specified address with an optional comment
     /// @param target The target CrowdmuseProduct contract address where the mint will occur
@@ -150,22 +138,59 @@ contract CrowdmuseEscrowMinter is
     /// @notice Sets the sale config for a given token
     /// @param target The target contract for which the sale config is being set
     /// @param salesConfig The sales configuration
-    function setSale(address target, SalesConfig memory salesConfig) external {
-        require(
-            Ownable(target).owner() == msg.sender,
-            "Caller is not the owner"
-        );
-
+    function setSale(
+        address target,
+        SalesConfig memory salesConfig
+    ) external onlyOwner(target) {
         salesConfigs[target] = salesConfig;
 
         // Emit event
         emit SaleSet(target, salesConfig);
     }
 
-    /// @notice Returns the sale config for a given token
+    /// @notice Retrieves the sale configuration for a specified product.
+    /// @dev Returns the sales configuration struct for the provided token contract address.
+    /// @param tokenContract The address of the token contract for which the sale configuration is requested.
+    /// @return The sales configuration struct for the given token contract.
     function sale(
         address tokenContract
     ) external view returns (SalesConfig memory) {
         return salesConfigs[tokenContract];
     }
+
+    /// @notice Redeems escrowed funds for a given product, transferring them to the product's funds recipient.
+    /// Can only be called by the owner of the target product contract.
+    /// Deletes the sales configuration for the target product after redeeming the funds.
+    /// @param target Address of the target product contract whose escrowed funds are to be redeemed.
+    function redeem(address target) external onlyOwner(target) {
+        SalesConfig storage config = salesConfigs[target];
+
+        uint256 amount = balanceOf[target];
+
+        IERC20(salesConfigs[target].erc20Address).transfer(
+            config.fundsRecipient,
+            amount
+        );
+
+        emit EscrowRedeemed(
+            target,
+            config.fundsRecipient,
+            salesConfigs[target].erc20Address,
+            amount
+        );
+        balanceOf[target] = 0;
+        delete salesConfigs[target];
+    }
+
+    /// @dev Modifier to restrict functions to the owner of the target contract.
+    /// Throws `OwnableUnauthorizedAccount` if the caller is not the owner.
+    /// @param target Address of the target contract to check ownership against.
+    modifier onlyOwner(address target) {
+        if (Ownable(target).owner() != msg.sender) {
+            revert Ownable.OwnableUnauthorizedAccount(msg.sender);
+        }
+
+        _;
+    }
+    // TODO: add method for refunding escrowed funds
 }

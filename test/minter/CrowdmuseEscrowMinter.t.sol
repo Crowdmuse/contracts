@@ -2,33 +2,31 @@
 pragma solidity ^0.8.10;
 
 import "forge-std/Test.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {CrowdmuseProduct} from "../../src/CrowdmuseProduct.sol";
 import {ICrowdmuseProduct} from "../../src/interfaces/ICrowdmuseProduct.sol";
+import {ICrowdmuseEscrow} from "../../src/interfaces/ICrowdmuseEscrow.sol";
 import {IMinterStorage} from "../../src/interfaces/IMinterStorage.sol";
+import {IMinterErrors} from "../../src/interfaces/IMinterErrors.sol";
 import {CrowdmuseEscrowMinter} from "../../src/minters/CrowdmuseEscrowMinter.sol";
 import {MockERC20} from "../mocks/MockERC20.sol";
 
-contract CrowdmuseEscrowMinterTest is Test, IMinterStorage {
+contract CrowdmuseEscrowMinterTest is
+    Test,
+    ICrowdmuseEscrow,
+    IMinterStorage,
+    IMinterErrors
+{
     CrowdmuseProduct internal product;
     CrowdmuseEscrowMinter internal minter;
     MockERC20 internal usdc;
     address payable internal admin = payable(address(0x999));
     address payable internal nonAdmin = payable(address(0x666));
     address payable internal protocolFeeRecipient = payable(address(0x7777777));
-    address internal zora;
     address internal tokenRecipient;
     address internal fundsRecipient;
 
-    event MintComment(
-        address indexed sender,
-        address indexed tokenContract,
-        uint256 indexed tokenId,
-        uint256 quantity,
-        string comment
-    );
-
     function setUp() external {
-        zora = makeAddr("zora");
         tokenRecipient = makeAddr("tokenRecipient");
         fundsRecipient = makeAddr("fundsRecipient");
 
@@ -97,9 +95,13 @@ contract CrowdmuseEscrowMinterTest is Test, IMinterStorage {
             erc20Address: address(0x333)
         });
 
+        bytes memory expectedError = abi.encodeWithSelector(
+            Ownable.OwnableUnauthorizedAccount.selector,
+            nonAdmin
+        );
         // Attempt to set sale config as a non-owner should fail
         vm.prank(address(nonAdmin));
-        vm.expectRevert("Caller is not the owner");
+        vm.expectRevert(expectedError);
         minter.setSale(address(product), salesConfig);
 
         _setSale(salesConfig);
@@ -205,26 +207,158 @@ contract CrowdmuseEscrowMinterTest is Test, IMinterStorage {
     }
 
     function test_MintFlowAndEscrowDeposit() external {
-        // Set up the sales configuration for the product
-        _setMintSale();
-        // Make the minter admin
-        _setMinterAdmin();
+        _setupEscrowMinter();
 
         // Set up the minting parameters
-        bytes32 garmentType = keccak256(abi.encodePacked("size:one"));
         uint256 quantity = 1;
         uint256 pricePerToken = minter.sale(address(product)).pricePerToken;
-
-        // Approve the minter contract to spend the buyer's USDC
-        vm.startPrank(tokenRecipient);
-        usdc.mint(tokenRecipient, 10 ether);
-        usdc.approve(address(minter), pricePerToken * quantity);
 
         // Get the initial balance of the target
         uint256 initialBalanceOfTarget = minter.balanceOf(address(product));
         // Get the expected final balance of the target
         uint256 expectedNewBalance = initialBalanceOfTarget +
             (pricePerToken * quantity);
+
+        _mintToTokenRecipient(quantity);
+
+        // Verify balanceOf is correctly updated
+        uint256 newBalanceOfTarget = minter.balanceOf(address(product));
+        assertEq(
+            newBalanceOfTarget,
+            expectedNewBalance,
+            "balanceOf[target] should be correctly updated."
+        );
+    }
+
+    function test_Redeem() public {
+        _setupEscrowMinter();
+
+        uint256 initialFundsRecipientBalance = usdc.balanceOf(fundsRecipient);
+
+        _mintToTokenRecipient(1);
+        uint256 escrowedAmount = minter.balanceOf(address(product));
+
+        // Expect the EscrowRedeemed event to be emitted with the correct parameters
+        vm.expectEmit(true, true, true, true);
+        emit EscrowRedeemed(
+            address(product),
+            fundsRecipient,
+            address(usdc),
+            escrowedAmount
+        );
+        _redeemAsAdmin();
+
+        uint256 finalFundsRecipientBalance = usdc.balanceOf(fundsRecipient);
+        uint256 finalEscrowBalance = minter.balanceOf(address(product));
+
+        assertEq(
+            finalFundsRecipientBalance,
+            initialFundsRecipientBalance + escrowedAmount,
+            "FundsRecipient did not receive the correct amount of USDC"
+        );
+        assertEq(
+            finalEscrowBalance,
+            0,
+            "Escrow balance should be zero after redemption"
+        );
+    }
+
+    function test_Redeem_OnlyOwnerCanCall(address _nonAdmin) external {
+        _setupEscrowMinter();
+        _mintToTokenRecipient(10);
+
+        // Attempt to redeem as a non-owner should fail with OwnableUnauthorizedAccount error
+        bytes memory expectedError = abi.encodeWithSelector(
+            Ownable.OwnableUnauthorizedAccount.selector,
+            _nonAdmin
+        );
+        vm.expectRevert(expectedError);
+
+        vm.prank(_nonAdmin);
+        minter.redeem(address(product));
+    }
+
+    function test_Redeem_ConfigDeletedAfterRedemption() external {
+        _setupEscrowMinter();
+        _mintToTokenRecipient(10);
+
+        // Redeem as the owner should succeed
+        _redeemAsAdmin();
+
+        // After redemption, attempt to access the product's sales configuration
+        SalesConfig memory configAfterRedemption = minter.sale(
+            address(product)
+        );
+
+        // Define expected default values for a SalesConfig struct
+        SalesConfig memory defaultConfig;
+
+        // Verify that the sales configuration matches the default (indicating it was deleted)
+        assertTrue(
+            _compareSalesConfig(configAfterRedemption, defaultConfig),
+            "Sales configuration was not deleted after redemption."
+        );
+    }
+
+    function test_Redeem_MintingFailsWithSaleEndedAfterRedeem() external {
+        _setupEscrowMinter();
+        _mintToTokenRecipient(10);
+        _redeemAsAdmin();
+
+        // Attempt to mint tokens after the sale has been redeemed
+        vm.prank(tokenRecipient);
+        usdc.approve(address(minter), 1 ether);
+        vm.expectRevert(SaleEnded.selector);
+        minter.mint(
+            address(product),
+            tokenRecipient,
+            keccak256("size:one"),
+            1,
+            "Minting after redeem"
+        );
+    }
+
+    // TEST UTILS
+    function _setupEscrowMinter() internal {
+        // Set up the sales configuration for the product
+        _setMintSale();
+        // Make the minter admin
+        _setMinterAdmin();
+    }
+
+    function _setMinterAdmin() internal {
+        vm.prank(admin);
+        product.changeAdmin(address(minter));
+    }
+
+    function _setMintSale() internal returns (SalesConfig memory salesConfig) {
+        salesConfig = SalesConfig({
+            saleStart: uint64(block.timestamp),
+            saleEnd: uint64(block.timestamp + 1 days),
+            maxTokensPerAddress: uint64(500),
+            pricePerToken: uint96(1 ether),
+            fundsRecipient: fundsRecipient,
+            erc20Address: address(usdc)
+        });
+
+        _setSale(salesConfig);
+    }
+
+    function _setSale(SalesConfig memory salesConfig) internal {
+        // Set sale config as the owner should succeed
+        vm.prank(admin);
+        minter.setSale(address(product), salesConfig);
+    }
+
+    function _mintToTokenRecipient(uint256 quantity) internal {
+        // Set up the minting parameters
+        bytes32 garmentType = keccak256(abi.encodePacked("size:one"));
+        uint256 pricePerToken = minter.sale(address(product)).pricePerToken;
+
+        // Approve the minter contract to spend the buyer's USDC
+        vm.startPrank(tokenRecipient);
+        usdc.mint(tokenRecipient, 10 ether);
+        usdc.approve(address(minter), pricePerToken * quantity);
 
         // Expect the EscrowDeposit event to be emitted
         vm.expectEmit(true, true, true, true);
@@ -243,37 +377,24 @@ contract CrowdmuseEscrowMinterTest is Test, IMinterStorage {
             "Test comment"
         );
         vm.stopPrank();
-
-        // Verify balanceOf is correctly updated
-        uint256 newBalanceOfTarget = minter.balanceOf(address(product));
-        assertEq(
-            newBalanceOfTarget,
-            expectedNewBalance,
-            "balanceOf[target] should be correctly updated."
-        );
     }
 
-    function _setMinterAdmin() internal {
+    // Utility function to compare two SalesConfig structs
+    function _compareSalesConfig(
+        SalesConfig memory a,
+        SalesConfig memory b
+    ) internal pure returns (bool) {
+        return
+            a.saleStart == b.saleStart &&
+            a.saleEnd == b.saleEnd &&
+            a.maxTokensPerAddress == b.maxTokensPerAddress &&
+            a.pricePerToken == b.pricePerToken &&
+            a.fundsRecipient == b.fundsRecipient &&
+            a.erc20Address == b.erc20Address;
+    }
+
+    function _redeemAsAdmin() internal {
         vm.prank(admin);
-        product.changeAdmin(address(minter));
-    }
-
-    function _setMintSale() internal returns (SalesConfig memory salesConfig) {
-        salesConfig = SalesConfig({
-            saleStart: uint64(block.timestamp),
-            saleEnd: uint64(block.timestamp + 1 days),
-            maxTokensPerAddress: uint64(5),
-            pricePerToken: uint96(1 ether),
-            fundsRecipient: fundsRecipient,
-            erc20Address: address(usdc)
-        });
-
-        _setSale(salesConfig);
-    }
-
-    function _setSale(SalesConfig memory salesConfig) internal {
-        // Set sale config as the owner should succeed
-        vm.prank(admin); // Assuming `admin` is the owner
-        minter.setSale(address(product), salesConfig);
+        minter.redeem(address(product));
     }
 }
