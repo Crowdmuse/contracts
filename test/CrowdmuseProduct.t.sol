@@ -108,7 +108,6 @@ contract CrowdmuseProductTest is Test {
         // Prepare user and admin addresses
         address userAddress = address(0x1);
         bytes32 garmentType = keccak256(abi.encodePacked("size:one"));
-        emit log_bytes32(garmentType);
         // Transfer some MockUSD to the user to buy an NFT
         uint256 userBalance = 2 ether;
         usdc.transfer(userAddress, userBalance);
