@@ -3,6 +3,7 @@ pragma solidity ^0.8.10;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {IERC721A} from "erc721a/contracts/IERC721A.sol";
 import {LimitedMintPerAddress} from "../utils/LimitedMintPerAddress.sol";
 import {IMinterErrors} from "../interfaces/IMinterErrors.sol";
@@ -16,7 +17,8 @@ contract CrowdmuseEscrowMinter is
     LimitedMintPerAddress,
     ICrowdmuseEscrowMinter,
     IMinterErrors,
-    IMinterStorage
+    IMinterStorage,
+    ReentrancyGuard
 {
     // product -> settings
     mapping(address => SalesConfig) internal salesConfigs;
@@ -120,7 +122,7 @@ contract CrowdmuseEscrowMinter is
     /// Can only be called by the owner of the target product contract.
     /// Deletes the sales configuration for the target product after redeeming the funds.
     /// @param target Address of the target product contract whose escrowed funds are to be redeemed.
-    function redeem(address target) external onlyOwner(target) {
+    function redeem(address target) external onlyOwner(target) nonReentrant {
         SalesConfig storage config = salesConfigs[target];
 
         uint256 amount = balanceOf[target];
@@ -146,7 +148,7 @@ contract CrowdmuseEscrowMinter is
     /// Can only be called by the owner of the target product contract.
     /// Resets the product's escrow balance after the refund process.
     /// @param target The address of the target product contract whose escrowed funds are to be refunded.
-    function refund(address target) external onlyOwner(target) {
+    function refund(address target) external onlyOwner(target) nonReentrant {
         SalesConfig storage config = salesConfigs[target];
         IERC721A productContract = IERC721A(target);
         uint256 totalSupply = productContract.totalSupply();
@@ -173,17 +175,6 @@ contract CrowdmuseEscrowMinter is
 
         // Clear the sales configuration for the product after refunding
         delete salesConfigs[target];
-    }
-
-    /// @dev Modifier to restrict functions to the owner of the target contract.
-    /// Throws `OwnableUnauthorizedAccount` if the caller is not the owner.
-    /// @param target Address of the target contract to check ownership against.
-    modifier onlyOwner(address target) {
-        if (Ownable(target).owner() != msg.sender) {
-            revert Ownable.OwnableUnauthorizedAccount(msg.sender);
-        }
-
-        _;
     }
 
     /// @notice Refunds the escrowed funds to the original token owners for a specified product.
@@ -269,5 +260,16 @@ contract CrowdmuseEscrowMinter is
 
         // Emit escrow event
         emit EscrowDeposit(target, msg.sender, amount);
+    }
+
+    /// @dev Modifier to restrict functions to the owner of the target contract.
+    /// Throws `OwnableUnauthorizedAccount` if the caller is not the owner.
+    /// @param target Address of the target contract to check ownership against.
+    modifier onlyOwner(address target) {
+        if (Ownable(target).owner() != msg.sender) {
+            revert Ownable.OwnableUnauthorizedAccount(msg.sender);
+        }
+
+        _;
     }
 }
