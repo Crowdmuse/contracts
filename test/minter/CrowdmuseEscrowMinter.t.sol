@@ -309,6 +309,10 @@ contract CrowdmuseEscrowMinterTest is
         _setupEscrowMinter();
         _mintTo(recipient, 10);
 
+        // Assume funds have been escrowed for 'product'
+        uint256 initialEscrowBalance = minter.balanceOf(address(product));
+        require(initialEscrowBalance > 0, "No funds in escrow to refund");
+
         // Execute refund by the product owner
         _refundAsAdmin();
 
@@ -368,7 +372,6 @@ contract CrowdmuseEscrowMinterTest is
             );
             // Record each depositor's initial balance
             initialBalances[i] = usdc.balanceOf(depositors[i]);
-            // Simulate a deposit scenario for each depositor
             uint256 quantity = _randomNumber(1, 3);
             _mintTo(depositors[i], quantity);
             expectedRefund[i] = config.pricePerToken * quantity;
