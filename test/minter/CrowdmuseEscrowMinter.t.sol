@@ -7,10 +7,16 @@ import {CrowdmuseProduct} from "../../src/CrowdmuseProduct.sol";
 import {ICrowdmuseProduct} from "../../src/interfaces/ICrowdmuseProduct.sol";
 import {ICrowdmuseEscrow} from "../../src/interfaces/ICrowdmuseEscrow.sol";
 import {IMinterStorage} from "../../src/interfaces/IMinterStorage.sol";
+import {IMinterErrors} from "../../src/interfaces/IMinterErrors.sol";
 import {CrowdmuseEscrowMinter} from "../../src/minters/CrowdmuseEscrowMinter.sol";
 import {MockERC20} from "../mocks/MockERC20.sol";
 
-contract CrowdmuseEscrowMinterTest is Test, ICrowdmuseEscrow, IMinterStorage {
+contract CrowdmuseEscrowMinterTest is
+    Test,
+    ICrowdmuseEscrow,
+    IMinterStorage,
+    IMinterErrors
+{
     CrowdmuseProduct internal product;
     CrowdmuseEscrowMinter internal minter;
     MockERC20 internal usdc;
@@ -251,8 +257,7 @@ contract CrowdmuseEscrowMinterTest is Test, ICrowdmuseEscrow, IMinterStorage {
             address(usdc),
             escrowedAmount
         );
-        vm.startPrank(admin);
-        minter.redeem(address(product));
+        _redeemAsAdmin();
 
         uint256 finalFundsRecipientBalance = usdc.balanceOf(fundsRecipient);
         uint256 finalEscrowBalance = minter.balanceOf(address(product));
@@ -286,13 +291,10 @@ contract CrowdmuseEscrowMinterTest is Test, ICrowdmuseEscrow, IMinterStorage {
 
     function test_Redeem_ConfigDeletedAfterRedemption() external {
         _setupEscrowMinter();
-
-        // Assume _mintToTokenRecipient simulates sales that accumulate some escrow amount
         _mintToTokenRecipient(10);
 
         // Redeem as the owner should succeed
-        vm.prank(admin);
-        minter.redeem(address(product));
+        _redeemAsAdmin();
 
         // After redemption, attempt to access the product's sales configuration
         SalesConfig memory configAfterRedemption = minter.sale(
@@ -306,6 +308,24 @@ contract CrowdmuseEscrowMinterTest is Test, ICrowdmuseEscrow, IMinterStorage {
         assertTrue(
             _compareSalesConfig(configAfterRedemption, defaultConfig),
             "Sales configuration was not deleted after redemption."
+        );
+    }
+
+    function test_Redeem_MintingFailsWithSaleEndedAfterRedeem() external {
+        _setupEscrowMinter();
+        _mintToTokenRecipient(10);
+        _redeemAsAdmin();
+
+        // Attempt to mint tokens after the sale has been redeemed
+        vm.prank(tokenRecipient);
+        usdc.approve(address(minter), 1 ether);
+        vm.expectRevert(SaleEnded.selector);
+        minter.mint(
+            address(product),
+            tokenRecipient,
+            keccak256("size:one"),
+            1,
+            "Minting after redeem"
         );
     }
 
@@ -381,5 +401,10 @@ contract CrowdmuseEscrowMinterTest is Test, ICrowdmuseEscrow, IMinterStorage {
             a.pricePerToken == b.pricePerToken &&
             a.fundsRecipient == b.fundsRecipient &&
             a.erc20Address == b.erc20Address;
+    }
+
+    function _redeemAsAdmin() internal {
+        vm.prank(admin);
+        minter.redeem(address(product));
     }
 }
