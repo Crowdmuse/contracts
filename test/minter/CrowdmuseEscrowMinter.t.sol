@@ -4,10 +4,11 @@ pragma solidity ^0.8.10;
 import "forge-std/Test.sol";
 import {CrowdmuseProduct} from "../../src/CrowdmuseProduct.sol";
 import {ICrowdmuseProduct} from "../../src/interfaces/ICrowdmuseProduct.sol";
+import {IMinterStorage} from "../../src/interfaces/IMinterStorage.sol";
 import {CrowdmuseEscrowMinter} from "../../src/minters/CrowdmuseEscrowMinter.sol";
 import {MockERC20} from "../mocks/MockERC20.sol";
 
-contract CrowdmuseEscrowMinterTest is Test {
+contract CrowdmuseEscrowMinterTest is Test, IMinterStorage {
     CrowdmuseProduct internal product;
     CrowdmuseEscrowMinter internal minter;
     MockERC20 internal usdc;
@@ -83,6 +84,62 @@ contract CrowdmuseEscrowMinterTest is Test {
 
     function test_Version() external view {
         assertEq(minter.contractVersion(), "0.0.1");
+    }
+
+    function test_SetSale() external {
+        uint256 tokenId = 1;
+        SalesConfig memory salesConfig = SalesConfig({
+            saleStart: uint64(block.timestamp),
+            saleEnd: uint64(block.timestamp + 1 days),
+            maxTokensPerAddress: uint64(5),
+            pricePerToken: uint96(1 ether),
+            fundsRecipient: address(this),
+            erc20Address: address(0x333)
+        });
+
+        // Expect the SaleSet event to be emitted with the correct parameters.
+        vm.expectEmit(true, true, true, false);
+        emit SaleSet(address(this), tokenId, salesConfig);
+
+        minter.setSale(tokenId, salesConfig);
+
+        // Retrieve the sales configuration for the tokenId and msg.sender from the contract.
+        SalesConfig memory retrievedConfig = minter.sale(
+            address(this),
+            tokenId
+        );
+
+        // Assertions to check if the stored salesConfig matches the one we set.
+        assertEq(
+            retrievedConfig.saleStart,
+            salesConfig.saleStart,
+            "Sale start timestamp mismatch."
+        );
+        assertEq(
+            retrievedConfig.saleEnd,
+            salesConfig.saleEnd,
+            "Sale end timestamp mismatch."
+        );
+        assertEq(
+            retrievedConfig.maxTokensPerAddress,
+            salesConfig.maxTokensPerAddress,
+            "Max tokens per address mismatch."
+        );
+        assertEq(
+            retrievedConfig.pricePerToken,
+            salesConfig.pricePerToken,
+            "Price per token mismatch."
+        );
+        assertEq(
+            retrievedConfig.fundsRecipient,
+            salesConfig.fundsRecipient,
+            "Funds recipient mismatch."
+        );
+        assertEq(
+            retrievedConfig.erc20Address,
+            salesConfig.erc20Address,
+            "ERC20 address mismatch."
+        );
     }
 
     function test_MintFlow() external {

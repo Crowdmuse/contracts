@@ -4,10 +4,14 @@ pragma solidity ^0.8.10;
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IMinterErrors} from "../interfaces/IMinterErrors.sol";
 import {ICrowdmuseProduct} from "../interfaces/ICrowdmuseProduct.sol";
+import {IMinterStorage} from "../interfaces/IMinterStorage.sol";
 
 /// @title CrowdmuseEscrowMinter
 /// @notice A minter that allows for basic purchasing on Crowdmuse
-contract CrowdmuseEscrowMinter is IMinterErrors {
+contract CrowdmuseEscrowMinter is IMinterErrors, IMinterStorage {
+    // target -> tokenId -> settings
+    mapping(address => mapping(uint256 => SalesConfig)) internal salesConfigs;
+
     /// @notice Retrieves the contract metadata URI
     /// @return A string representing the metadata URI for this contract
     function contractURI() external pure returns (string memory) {
@@ -80,5 +84,21 @@ contract CrowdmuseEscrowMinter is IMinterErrors {
         if (bytes(comment).length > 0) {
             emit MintComment(mintTo, target, tokenId, quantity, comment);
         }
+    }
+
+    /// @notice Sets the sale config for a given token
+    function setSale(uint256 tokenId, SalesConfig memory salesConfig) external {
+        salesConfigs[msg.sender][tokenId] = salesConfig;
+
+        // Emit event
+        emit SaleSet(msg.sender, tokenId, salesConfig);
+    }
+
+    /// @notice Returns the sale config for a given token
+    function sale(
+        address tokenContract,
+        uint256 tokenId
+    ) external view returns (SalesConfig memory) {
+        return salesConfigs[tokenContract][tokenId];
     }
 }
