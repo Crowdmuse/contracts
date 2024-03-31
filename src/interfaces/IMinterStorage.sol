@@ -18,4 +18,18 @@ interface IMinterStorage {
     }
 
     event SaleSet(address indexed mediaContract, SalesConfig salesConfig);
+
+    /// @dev Emitted when a mint operation includes a comment
+    /// @param sender The address that initiated the mint operation
+    /// @param tokenContract The address of the token contract where the mint occurred
+    /// @param tokenId The ID of the token that was minted
+    /// @param quantity The quantity of tokens minted
+    /// @param comment A comment provided during the minting process
+    event MintComment(
+        address indexed sender,
+        address indexed tokenContract,
+        uint256 indexed tokenId,
+        uint256 quantity,
+        string comment
+    );
 }

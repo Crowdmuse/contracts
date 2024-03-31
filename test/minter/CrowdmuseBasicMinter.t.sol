@@ -13,7 +13,6 @@ contract CrowdmuseBasicMinterTest is Test {
     MockERC20 internal usdc;
     address payable internal admin = payable(address(0x999));
     address payable internal protocolFeeRecipient = payable(address(0x7777777));
-    address internal zora;
     address internal tokenRecipient;
     address internal fundsRecipient;
 
@@ -26,7 +25,6 @@ contract CrowdmuseBasicMinterTest is Test {
     );
 
     function setUp() external {
-        zora = makeAddr("zora");
         tokenRecipient = makeAddr("tokenRecipient");
         fundsRecipient = makeAddr("fundsRecipient");
 

@@ -23,20 +23,10 @@ contract CrowdmuseEscrowMinterTest is
     address payable internal admin = payable(address(0x999));
     address payable internal nonAdmin = payable(address(0x666));
     address payable internal protocolFeeRecipient = payable(address(0x7777777));
-    address internal zora;
     address internal tokenRecipient;
     address internal fundsRecipient;
 
-    event MintComment(
-        address indexed sender,
-        address indexed tokenContract,
-        uint256 indexed tokenId,
-        uint256 quantity,
-        string comment
-    );
-
     function setUp() external {
-        zora = makeAddr("zora");
         tokenRecipient = makeAddr("tokenRecipient");
         fundsRecipient = makeAddr("fundsRecipient");
 
