@@ -85,14 +85,7 @@ contract CrowdmuseEscrowMinterTest is
     }
 
     function test_SetSale_OnlyOwner() external {
-        SalesConfig memory salesConfig = SalesConfig({
-            saleStart: uint64(block.timestamp),
-            saleEnd: uint64(block.timestamp + 1 days),
-            maxTokensPerAddress: uint64(5),
-            pricePerToken: uint96(1 ether),
-            fundsRecipient: address(this),
-            erc20Address: address(0x333)
-        });
+        SalesConfig memory salesConfig = _getExpectedSaleConfig();
 
         bytes memory expectedError = abi.encodeWithSelector(
             Ownable.OwnableUnauthorizedAccount.selector,
@@ -101,9 +94,9 @@ contract CrowdmuseEscrowMinterTest is
         // Attempt to set sale config as a non-owner should fail
         vm.prank(address(nonAdmin));
         vm.expectRevert(expectedError);
-        minter.setSale(address(product), salesConfig);
+        minter.setSale(address(product));
 
-        _setSale(salesConfig);
+        _setSale();
 
         // Retrieve and validate the set sales configuration
         SalesConfig memory retrievedConfig = minter.sale(address(product));
@@ -141,6 +134,52 @@ contract CrowdmuseEscrowMinterTest is
         );
     }
 
+    function test_SetSale_ConfigMatchesOriginalProduct() external {
+        _setupEscrowMinter();
+
+        // Set the sale with the original configuration
+        vm.prank(admin);
+        minter.setSale(address(product));
+
+        // Original sales configuration for comparison
+        SalesConfig memory expectedConfig = _getExpectedSaleConfig();
+
+        // Retrieve the sales configuration after setting
+        SalesConfig memory config = minter.sale(address(product));
+
+        // Assertions to ensure the set configuration matches the original
+        assertEq(
+            config.saleStart,
+            expectedConfig.saleStart,
+            "Sale start timestamp mismatch."
+        );
+        assertEq(
+            config.saleEnd,
+            expectedConfig.saleEnd,
+            "Sale end timestamp mismatch."
+        );
+        assertEq(
+            config.maxTokensPerAddress,
+            expectedConfig.maxTokensPerAddress,
+            "Max tokens per address mismatch."
+        );
+        assertEq(
+            config.pricePerToken,
+            expectedConfig.pricePerToken,
+            "Price per token mismatch."
+        );
+        assertEq(
+            config.fundsRecipient,
+            expectedConfig.fundsRecipient,
+            "Funds recipient mismatch."
+        );
+        assertEq(
+            config.erc20Address,
+            expectedConfig.erc20Address,
+            "ERC20 address mismatch."
+        );
+    }
+
     function test_MintFlow() external {
         usdc.mint(tokenRecipient, 10 ether);
         bytes32 garmentType = keccak256(abi.encodePacked("size:one"));
@@ -158,7 +197,8 @@ contract CrowdmuseEscrowMinterTest is
 
         uint256 newTokenId = product.totalSupply() + 1;
 
-        SalesConfig memory salesConfig = _setMintSale();
+        SalesConfig memory salesConfig = _getExpectedSaleConfig();
+        _setSale();
 
         vm.startPrank(tokenRecipient);
         usdc.approve(address(minter), salesConfig.pricePerToken);
@@ -229,25 +269,25 @@ contract CrowdmuseEscrowMinterTest is
         );
     }
 
-    function test_Redeem() public {
+    function test_Redeem(address recipient) public {
         _setupEscrowMinter();
 
         uint256 initialFundsRecipientBalance = usdc.balanceOf(fundsRecipient);
 
-        _mintToTokenRecipient(1);
+        _mintTo(recipient, 10);
         uint256 escrowedAmount = minter.balanceOf(address(product));
 
         // Expect the EscrowRedeemed event to be emitted with the correct parameters
         vm.expectEmit(true, true, true, true);
         emit EscrowRedeemed(
             address(product),
-            fundsRecipient,
+            address(product),
             address(usdc),
             escrowedAmount
         );
         _redeemAsAdmin();
 
-        uint256 finalFundsRecipientBalance = usdc.balanceOf(fundsRecipient);
+        uint256 finalFundsRecipientBalance = usdc.balanceOf(address(product));
         uint256 finalEscrowBalance = minter.balanceOf(address(product));
 
         assertEq(
@@ -416,7 +456,7 @@ contract CrowdmuseEscrowMinterTest is
     // TEST UTILS
     function _setupEscrowMinter() internal {
         // Set up the sales configuration for the product
-        _setMintSale();
+        _setSale();
         // Make the minter admin
         _setMinterAdmin();
     }
@@ -426,23 +466,10 @@ contract CrowdmuseEscrowMinterTest is
         product.changeAdmin(address(minter));
     }
 
-    function _setMintSale() internal returns (SalesConfig memory salesConfig) {
-        salesConfig = SalesConfig({
-            saleStart: uint64(block.timestamp),
-            saleEnd: type(uint64).max,
-            maxTokensPerAddress: uint64(500),
-            pricePerToken: uint96(1 ether),
-            fundsRecipient: fundsRecipient,
-            erc20Address: address(usdc)
-        });
-
-        _setSale(salesConfig);
-    }
-
-    function _setSale(SalesConfig memory salesConfig) internal {
+    function _setSale() internal {
         // Set sale config as the owner should succeed
         vm.prank(admin);
-        minter.setSale(address(product), salesConfig);
+        minter.setSale(address(product));
     }
 
     function _mintToTokenRecipient(uint256 quantity) internal {
@@ -530,5 +557,20 @@ contract CrowdmuseEscrowMinterTest is
             _compareSalesConfig(config, defaultConfig),
             "Sales configuration should be empty."
         );
+    }
+
+    function _getExpectedSaleConfig()
+        internal
+        view
+        returns (SalesConfig memory salesConfig)
+    {
+        salesConfig = SalesConfig({
+            saleStart: 0,
+            saleEnd: type(uint64).max,
+            maxTokensPerAddress: uint64(product.getMaxAmountOfTokensPerMint()),
+            pricePerToken: uint96(product.buyNFTPrice()),
+            fundsRecipient: address(product),
+            erc20Address: address(product.paymentToken())
+        });
     }
 }

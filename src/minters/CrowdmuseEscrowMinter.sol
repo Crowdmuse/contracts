@@ -97,11 +97,17 @@ contract CrowdmuseEscrowMinter is
 
     /// @notice Sets the sale config for a given token
     /// @param target The target contract for which the sale config is being set
-    /// @param salesConfig The sales configuration
-    function setSale(
-        address target,
-        SalesConfig memory salesConfig
-    ) external onlyOwner(target) {
+    function setSale(address target) external onlyOwner(target) {
+        ICrowdmuseProduct product = ICrowdmuseProduct(target);
+        SalesConfig memory salesConfig = SalesConfig({
+            saleStart: 0,
+            saleEnd: type(uint64).max,
+            maxTokensPerAddress: uint64(product.getMaxAmountOfTokensPerMint()),
+            pricePerToken: uint96(product.buyNFTPrice()),
+            fundsRecipient: target,
+            erc20Address: address(product.paymentToken())
+        });
+
         salesConfigs[target] = salesConfig;
 
         // Emit event
