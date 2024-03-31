@@ -4,11 +4,12 @@ pragma solidity ^0.8.10;
 import "forge-std/Test.sol";
 import {CrowdmuseProduct} from "../../src/CrowdmuseProduct.sol";
 import {ICrowdmuseProduct} from "../../src/interfaces/ICrowdmuseProduct.sol";
+import {ICrowdmuseEscrow} from "../../src/interfaces/ICrowdmuseEscrow.sol";
 import {IMinterStorage} from "../../src/interfaces/IMinterStorage.sol";
 import {CrowdmuseEscrowMinter} from "../../src/minters/CrowdmuseEscrowMinter.sol";
 import {MockERC20} from "../mocks/MockERC20.sol";
 
-contract CrowdmuseEscrowMinterTest is Test, IMinterStorage {
+contract CrowdmuseEscrowMinterTest is Test, ICrowdmuseEscrow, IMinterStorage {
     CrowdmuseProduct internal product;
     CrowdmuseEscrowMinter internal minter;
     MockERC20 internal usdc;
@@ -205,20 +206,11 @@ contract CrowdmuseEscrowMinterTest is Test, IMinterStorage {
     }
 
     function test_MintFlowAndEscrowDeposit() external {
-        // Set up the sales configuration for the product
-        _setMintSale();
-        // Make the minter admin
-        _setMinterAdmin();
+        _setupEscrowMinter();
 
         // Set up the minting parameters
-        bytes32 garmentType = keccak256(abi.encodePacked("size:one"));
         uint256 quantity = 1;
         uint256 pricePerToken = minter.sale(address(product)).pricePerToken;
-
-        // Approve the minter contract to spend the buyer's USDC
-        vm.startPrank(tokenRecipient);
-        usdc.mint(tokenRecipient, 10 ether);
-        usdc.approve(address(minter), pricePerToken * quantity);
 
         // Get the initial balance of the target
         uint256 initialBalanceOfTarget = minter.balanceOf(address(product));
@@ -226,23 +218,7 @@ contract CrowdmuseEscrowMinterTest is Test, IMinterStorage {
         uint256 expectedNewBalance = initialBalanceOfTarget +
             (pricePerToken * quantity);
 
-        // Expect the EscrowDeposit event to be emitted
-        vm.expectEmit(true, true, true, true);
-        emit EscrowDeposit(
-            address(product),
-            tokenRecipient,
-            pricePerToken * quantity
-        );
-
-        // Call the mint function
-        minter.mint(
-            address(product),
-            tokenRecipient,
-            garmentType,
-            quantity,
-            "Test comment"
-        );
-        vm.stopPrank();
+        _mintToTokenRecipient(quantity);
 
         // Verify balanceOf is correctly updated
         uint256 newBalanceOfTarget = minter.balanceOf(address(product));
@@ -251,6 +227,48 @@ contract CrowdmuseEscrowMinterTest is Test, IMinterStorage {
             expectedNewBalance,
             "balanceOf[target] should be correctly updated."
         );
+    }
+
+    function testRedeem() public {
+        _setupEscrowMinter();
+
+        uint256 initialFundsRecipientBalance = usdc.balanceOf(fundsRecipient);
+
+        _mintToTokenRecipient(1);
+        uint256 escrowedAmount = minter.balanceOf(address(product));
+
+        // Expect the EscrowRedeemed event to be emitted with the correct parameters
+        vm.expectEmit(true, true, true, true);
+        emit EscrowRedeemed(
+            address(product),
+            fundsRecipient,
+            address(usdc),
+            escrowedAmount
+        );
+        vm.startPrank(admin);
+        minter.redeem(address(product));
+
+        uint256 finalFundsRecipientBalance = usdc.balanceOf(fundsRecipient);
+        uint256 finalEscrowBalance = minter.balanceOf(address(product));
+
+        assertEq(
+            finalFundsRecipientBalance,
+            initialFundsRecipientBalance + escrowedAmount,
+            "FundsRecipient did not receive the correct amount of USDC"
+        );
+        assertEq(
+            finalEscrowBalance,
+            0,
+            "Escrow balance should be zero after redemption"
+        );
+    }
+
+    // TEST UTILS
+    function _setupEscrowMinter() internal {
+        // Set up the sales configuration for the product
+        _setMintSale();
+        // Make the minter admin
+        _setMinterAdmin();
     }
 
     function _setMinterAdmin() internal {
@@ -275,5 +293,33 @@ contract CrowdmuseEscrowMinterTest is Test, IMinterStorage {
         // Set sale config as the owner should succeed
         vm.prank(admin); // Assuming `admin` is the owner
         minter.setSale(address(product), salesConfig);
+    }
+
+    function _mintToTokenRecipient(uint256 quantity) internal {
+        // Set up the minting parameters
+        bytes32 garmentType = keccak256(abi.encodePacked("size:one"));
+        uint256 pricePerToken = minter.sale(address(product)).pricePerToken;
+        // Approve the minter contract to spend the buyer's USDC
+        vm.startPrank(tokenRecipient);
+        usdc.mint(tokenRecipient, 10 ether);
+        usdc.approve(address(minter), pricePerToken * quantity);
+
+        // Expect the EscrowDeposit event to be emitted
+        vm.expectEmit(true, true, true, true);
+        emit EscrowDeposit(
+            address(product),
+            tokenRecipient,
+            pricePerToken * quantity
+        );
+
+        // Call the mint function
+        minter.mint(
+            address(product),
+            tokenRecipient,
+            garmentType,
+            quantity,
+            "Test comment"
+        );
+        vm.stopPrank();
     }
 }

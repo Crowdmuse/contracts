@@ -6,18 +6,20 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {LimitedMintPerAddress} from "../utils/LimitedMintPerAddress.sol";
 import {IMinterErrors} from "../interfaces/IMinterErrors.sol";
 import {ICrowdmuseProduct} from "../interfaces/ICrowdmuseProduct.sol";
+import {ICrowdmuseEscrow} from "../interfaces/ICrowdmuseEscrow.sol";
 import {IMinterStorage} from "../interfaces/IMinterStorage.sol";
 
 /// @title CrowdmuseEscrowMinter
 /// @notice A minter that allows for basic purchasing on Crowdmuse
 contract CrowdmuseEscrowMinter is
     LimitedMintPerAddress,
+    ICrowdmuseEscrow,
     IMinterErrors,
     IMinterStorage
 {
-    // target -> tokenId -> settings
+    // product -> settings
     mapping(address => SalesConfig) internal salesConfigs;
-    /// @notice An escrow's balance
+    /// @notice A product's escrow balance
     mapping(address => uint256) public balanceOf;
 
     /// @notice Retrieves the contract metadata URI
@@ -168,4 +170,30 @@ contract CrowdmuseEscrowMinter is
     ) external view returns (SalesConfig memory) {
         return salesConfigs[tokenContract];
     }
+
+    // TODO: add method for redeeming escrowed funds
+    function redeem(address target) external {
+        require(
+            Ownable(target).owner() == msg.sender,
+            "Caller is not the owner"
+        );
+
+        SalesConfig storage config = salesConfigs[target];
+
+        uint256 amount = balanceOf[target];
+        balanceOf[target] = 0;
+
+        IERC20(salesConfigs[target].erc20Address).transfer(
+            config.fundsRecipient,
+            amount
+        );
+
+        emit EscrowRedeemed(
+            target,
+            config.fundsRecipient,
+            salesConfigs[target].erc20Address,
+            amount
+        );
+    }
+    // TODO: add method for refunding escrowed funds
 }
