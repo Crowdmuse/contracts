@@ -284,6 +284,31 @@ contract CrowdmuseEscrowMinterTest is Test, ICrowdmuseEscrow, IMinterStorage {
         minter.redeem(address(product));
     }
 
+    function test_Redeem_ConfigDeletedAfterRedemption() external {
+        _setupEscrowMinter();
+
+        // Assume _mintToTokenRecipient simulates sales that accumulate some escrow amount
+        _mintToTokenRecipient(10);
+
+        // Redeem as the owner should succeed
+        vm.prank(admin);
+        minter.redeem(address(product));
+
+        // After redemption, attempt to access the product's sales configuration
+        SalesConfig memory configAfterRedemption = minter.sale(
+            address(product)
+        );
+
+        // Define expected default values for a SalesConfig struct
+        SalesConfig memory defaultConfig;
+
+        // Verify that the sales configuration matches the default (indicating it was deleted)
+        assertTrue(
+            _compareSalesConfig(configAfterRedemption, defaultConfig),
+            "Sales configuration was not deleted after redemption."
+        );
+    }
+
     // TEST UTILS
     function _setupEscrowMinter() internal {
         // Set up the sales configuration for the product
@@ -342,5 +367,19 @@ contract CrowdmuseEscrowMinterTest is Test, ICrowdmuseEscrow, IMinterStorage {
             "Test comment"
         );
         vm.stopPrank();
+    }
+
+    // Utility function to compare two SalesConfig structs
+    function _compareSalesConfig(
+        SalesConfig memory a,
+        SalesConfig memory b
+    ) internal pure returns (bool) {
+        return
+            a.saleStart == b.saleStart &&
+            a.saleEnd == b.saleEnd &&
+            a.maxTokensPerAddress == b.maxTokensPerAddress &&
+            a.pricePerToken == b.pricePerToken &&
+            a.fundsRecipient == b.fundsRecipient &&
+            a.erc20Address == b.erc20Address;
     }
 }

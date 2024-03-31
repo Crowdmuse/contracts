@@ -182,19 +182,15 @@ contract CrowdmuseEscrowMinter is
         SalesConfig storage config = salesConfigs[target];
 
         uint256 amount = balanceOf[target];
+        address fundsRecipient = config.fundsRecipient;
+        address erc20Address = salesConfigs[target].erc20Address;
         balanceOf[target] = 0;
 
-        IERC20(salesConfigs[target].erc20Address).transfer(
-            config.fundsRecipient,
-            amount
-        );
+        IERC20(erc20Address).transfer(fundsRecipient, amount);
 
-        emit EscrowRedeemed(
-            target,
-            config.fundsRecipient,
-            salesConfigs[target].erc20Address,
-            amount
-        );
+        delete salesConfigs[target];
+
+        emit EscrowRedeemed(target, fundsRecipient, erc20Address, amount);
     }
     // TODO: add method for refunding escrowed funds
 }
