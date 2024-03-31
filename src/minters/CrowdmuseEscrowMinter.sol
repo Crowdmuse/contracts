@@ -196,8 +196,7 @@ contract CrowdmuseEscrowMinter is
         for (uint256 tokenId = 1; tokenId <= totalSupply; tokenId++) {
             address owner = productContract.ownerOf(tokenId);
 
-            // Ensure the owner is valid and the price per token is not zero to avoid unnecessary transfers
-
+            // transfer ERC20 to owner
             IERC20(config.erc20Address).transfer(owner, config.pricePerToken);
             // Decrement the escrow balance for each payment made
             balanceOf[target] = balanceOf[target] > config.pricePerToken
