@@ -170,10 +170,10 @@ contract CrowdmuseEscrowMinter is
     }
 
     modifier onlyOwner(address target) {
-        require(
-            Ownable(target).owner() == msg.sender,
-            "Caller is not the owner"
-        );
+        if (Ownable(target).owner() != msg.sender) {
+            revert Ownable.OwnableUnauthorizedAccount(msg.sender);
+        }
+
         _;
     }
 

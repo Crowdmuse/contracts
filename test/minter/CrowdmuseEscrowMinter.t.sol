@@ -2,6 +2,7 @@
 pragma solidity ^0.8.10;
 
 import "forge-std/Test.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {CrowdmuseProduct} from "../../src/CrowdmuseProduct.sol";
 import {ICrowdmuseProduct} from "../../src/interfaces/ICrowdmuseProduct.sol";
 import {ICrowdmuseEscrow} from "../../src/interfaces/ICrowdmuseEscrow.sol";
@@ -98,9 +99,14 @@ contract CrowdmuseEscrowMinterTest is Test, ICrowdmuseEscrow, IMinterStorage {
             erc20Address: address(0x333)
         });
 
+        // Encode the expected error for comparison
+        bytes memory expectedError = abi.encodeWithSelector(
+            Ownable.OwnableUnauthorizedAccount.selector,
+            nonAdmin // The address that attempted and failed the authorization check
+        );
         // Attempt to set sale config as a non-owner should fail
         vm.prank(address(nonAdmin));
-        vm.expectRevert("Caller is not the owner");
+        vm.expectRevert(expectedError);
         minter.setSale(address(product), salesConfig);
 
         _setSale(salesConfig);
