@@ -284,20 +284,7 @@ contract CrowdmuseEscrowMinterTest is
 
         // Redeem as the owner should succeed
         _redeemAsAdmin();
-
-        // After redemption, attempt to access the product's sales configuration
-        SalesConfig memory configAfterRedemption = minter.sale(
-            address(product)
-        );
-
-        // Define expected default values for a SalesConfig struct
-        SalesConfig memory defaultConfig;
-
-        // Verify that the sales configuration matches the default (indicating it was deleted)
-        assertTrue(
-            _compareSalesConfig(configAfterRedemption, defaultConfig),
-            "Sales configuration was not deleted after redemption."
-        );
+        _verifyNoSalesConfig();
     }
 
     function test_Redeem_MintingFailsWithSaleEndedAfterRedeem() external {
@@ -419,6 +406,17 @@ contract CrowdmuseEscrowMinterTest is
         }
     }
 
+    function test_Refund_ConfigDeletedAfterRefund() external {
+        _setupEscrowMinter();
+        _mintToTokenRecipient(10);
+
+        // Refund as the owner should succeed
+        _refundAsAdmin();
+
+        // Verify that the sales configuration has been deleted
+        _verifyNoSalesConfig();
+    }
+
     // TEST UTILS
     function _setupEscrowMinter() internal {
         // Set up the sales configuration for the product
@@ -528,5 +526,14 @@ contract CrowdmuseEscrowMinterTest is
             keccak256(abi.encodePacked(block.timestamp, block.prevrandao))
         ) % (diff + 1);
         return min + random;
+    }
+
+    function _verifyNoSalesConfig() internal view {
+        SalesConfig memory config = minter.sale(address(product));
+        SalesConfig memory defaultConfig;
+        assertTrue(
+            _compareSalesConfig(config, defaultConfig),
+            "Sales configuration should be empty."
+        );
     }
 }

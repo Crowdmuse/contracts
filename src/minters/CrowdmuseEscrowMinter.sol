@@ -219,15 +219,15 @@ contract CrowdmuseEscrowMinter is
             balanceOf[target] = 0;
         }
 
-        // Optionally, you can clear the sales configuration for the product after refunding
-        // delete salesConfigs[target];
-
         // Emit an event to log the refund action
         emit EscrowRefunded(
             target,
             config.erc20Address,
             totalSupply * config.pricePerToken
         );
+
+        // Clear the sales configuration for the product after refunding
+        delete salesConfigs[target];
     }
 
     /// @dev Modifier to restrict functions to the owner of the target contract.
