@@ -194,21 +194,13 @@ contract CrowdmuseEscrowMinter is
         IERC721A productContract = IERC721A(target);
         uint256 totalSupply = productContract.totalSupply();
 
-        for (uint256 tokenId = 1; tokenId <= totalSupply; tokenId++) {
-            address owner = productContract.ownerOf(tokenId);
-
-            // Ensure the owner is valid and the price per token is not zero to avoid unnecessary transfers
-            if (config.pricePerToken > 0) {
-                IERC20(config.erc20Address).transfer(
-                    owner,
-                    config.pricePerToken
-                );
-                // Decrement the escrow balance for each payment made
-                balanceOf[target] = balanceOf[target] > config.pricePerToken
-                    ? balanceOf[target] - config.pricePerToken
-                    : 0;
-            }
+        // verify escrow has price
+        if (config.pricePerToken == 0) {
+            revert EscrowPriceZero();
         }
+
+        // refund all product owners
+        _refund(target);
 
         // After refunding all owners, ensure any remaining balance due to rounding or errors is cleared.
         if (balanceOf[target] > 0) {
@@ -235,5 +227,23 @@ contract CrowdmuseEscrowMinter is
         }
 
         _;
+    }
+
+    function _refund(address target) internal {
+        SalesConfig storage config = salesConfigs[target];
+        IERC721A productContract = IERC721A(target);
+        uint256 totalSupply = productContract.totalSupply();
+
+        for (uint256 tokenId = 1; tokenId <= totalSupply; tokenId++) {
+            address owner = productContract.ownerOf(tokenId);
+
+            // Ensure the owner is valid and the price per token is not zero to avoid unnecessary transfers
+
+            IERC20(config.erc20Address).transfer(owner, config.pricePerToken);
+            // Decrement the escrow balance for each payment made
+            balanceOf[target] = balanceOf[target] > config.pricePerToken
+                ? balanceOf[target] - config.pricePerToken
+                : 0;
+        }
     }
 }
