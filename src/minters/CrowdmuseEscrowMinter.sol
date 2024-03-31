@@ -17,6 +17,8 @@ contract CrowdmuseEscrowMinter is
 {
     // target -> tokenId -> settings
     mapping(address => SalesConfig) internal salesConfigs;
+    /// @notice An escrow's balance
+    mapping(address => uint256) public balanceOf;
 
     /// @notice Retrieves the contract metadata URI
     /// @return A string representing the metadata URI for this contract
@@ -81,10 +83,11 @@ contract CrowdmuseEscrowMinter is
         uint256 quantity,
         string memory comment
     ) internal returns (uint256 tokenId) {
+        // Get the sales config
         SalesConfig storage config = salesConfigs[target];
         uint256 totalPrice = config.pricePerToken * quantity;
-        // If sales config does not exist this first check will always fail.
 
+        // If sales config does not exist this first check will always fail.
         // Check sale end
         if (block.timestamp > config.saleEnd) {
             revert SaleEnded();
@@ -114,21 +117,34 @@ contract CrowdmuseEscrowMinter is
             );
         }
 
+        // Mint the token
         tokenId = ICrowdmuseProduct(target).buyPrepaidNFT(
             mintTo,
             garmentType,
             quantity
         );
 
+        // Emit comment event
         if (bytes(comment).length > 0) {
             emit MintComment(mintTo, target, tokenId, quantity, comment);
         }
 
+        // Transfer USDC to escrow
         IERC20(config.erc20Address).transferFrom(
             msg.sender,
             address(this),
             totalPrice
         );
+
+        // Track escrow funds for product
+        unchecked {
+            if (target != address(0)) {
+                balanceOf[target] += totalPrice;
+            }
+        }
+
+        // Emit escrow event
+        emit EscrowDeposit(target, msg.sender, totalPrice);
     }
 
     /// @notice Sets the sale config for a given token

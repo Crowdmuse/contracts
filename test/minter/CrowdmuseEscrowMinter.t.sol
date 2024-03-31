@@ -153,19 +153,11 @@ contract CrowdmuseEscrowMinterTest is Test, IMinterStorage {
 
         address target = address(product);
         string memory comment = "test comment";
-        vm.prank(admin);
-        product.changeAdmin(address(minter));
+        _setMinterAdmin();
 
         uint256 newTokenId = product.totalSupply() + 1;
-        SalesConfig memory salesConfig = SalesConfig({
-            saleStart: uint64(0),
-            saleEnd: uint64(block.timestamp + 1 days),
-            maxTokensPerAddress: uint64(5),
-            pricePerToken: uint96(1 ether),
-            fundsRecipient: fundsRecipient,
-            erc20Address: address(usdc)
-        });
-        _setSale(salesConfig);
+
+        SalesConfig memory salesConfig = _setMintSale();
 
         vm.startPrank(tokenRecipient);
         usdc.approve(address(minter), salesConfig.pricePerToken);
@@ -210,6 +202,73 @@ contract CrowdmuseEscrowMinterTest is Test, IMinterStorage {
             garmentType,
             "The minted NFT should have the correct garment type."
         );
+    }
+
+    function test_MintFlowAndEscrowDeposit() external {
+        // Set up the sales configuration for the product
+        _setMintSale();
+        // Make the minter admin
+        _setMinterAdmin();
+
+        // Set up the minting parameters
+        bytes32 garmentType = keccak256(abi.encodePacked("size:one"));
+        uint256 quantity = 1;
+        uint256 pricePerToken = minter.sale(address(product)).pricePerToken;
+
+        // Approve the minter contract to spend the buyer's USDC
+        vm.startPrank(tokenRecipient);
+        usdc.mint(tokenRecipient, 10 ether);
+        usdc.approve(address(minter), pricePerToken * quantity);
+
+        // Get the initial balance of the target
+        uint256 initialBalanceOfTarget = minter.balanceOf(address(product));
+        // Get the expected final balance of the target
+        uint256 expectedNewBalance = initialBalanceOfTarget +
+            (pricePerToken * quantity);
+
+        // Expect the EscrowDeposit event to be emitted
+        vm.expectEmit(true, true, true, true);
+        emit EscrowDeposit(
+            address(product),
+            tokenRecipient,
+            pricePerToken * quantity
+        );
+
+        // Call the mint function
+        minter.mint(
+            address(product),
+            tokenRecipient,
+            garmentType,
+            quantity,
+            "Test comment"
+        );
+        vm.stopPrank();
+
+        // Verify balanceOf is correctly updated
+        uint256 newBalanceOfTarget = minter.balanceOf(address(product));
+        assertEq(
+            newBalanceOfTarget,
+            expectedNewBalance,
+            "balanceOf[target] should be correctly updated."
+        );
+    }
+
+    function _setMinterAdmin() internal {
+        vm.prank(admin);
+        product.changeAdmin(address(minter));
+    }
+
+    function _setMintSale() internal returns (SalesConfig memory salesConfig) {
+        salesConfig = SalesConfig({
+            saleStart: uint64(block.timestamp),
+            saleEnd: uint64(block.timestamp + 1 days),
+            maxTokensPerAddress: uint64(5),
+            pricePerToken: uint96(1 ether),
+            fundsRecipient: fundsRecipient,
+            erc20Address: address(usdc)
+        });
+
+        _setSale(salesConfig);
     }
 
     function _setSale(SalesConfig memory salesConfig) internal {

@@ -18,4 +18,14 @@ interface IMinterStorage {
     }
 
     event SaleSet(address indexed mediaContract, SalesConfig salesConfig);
+
+    /// @notice Escrow Deposit Event
+    /// @param target collection for escrow
+    /// @param from The caller of the deposit
+    /// @param escrowAmount Creator reward amount
+    event EscrowDeposit(
+        address indexed target,
+        address indexed from,
+        uint256 escrowAmount
+    );
 }
