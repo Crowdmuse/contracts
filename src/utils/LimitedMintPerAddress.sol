@@ -5,32 +5,29 @@ import {ILimitedMintPerAddress} from "../interfaces/ILimitedMintPerAddress.sol";
 
 contract LimitedMintPerAddress is ILimitedMintPerAddress {
     /// @notice Storage for slot to check user mints
-    /// @notice target contract -> tokenId -> minter user -> numberMinted
+    /// @notice target contract -> minter user -> numberMinted
     /// @dev No gap or stroage interface since this is used within non-upgradeable contracts
-    mapping(address => mapping(uint256 => mapping(address => uint256)))
-        internal mintedPerAddress;
+    mapping(address => mapping(address => uint256)) internal mintedPerAddress;
 
     function getMintedPerWallet(
         address tokenContract,
-        uint256 tokenId,
         address wallet
     ) external view returns (uint256) {
-        return mintedPerAddress[tokenContract][tokenId][wallet];
+        return mintedPerAddress[tokenContract][wallet];
     }
 
     function _requireMintNotOverLimitAndUpdate(
         uint256 limit,
         uint256 numRequestedMint,
         address tokenContract,
-        uint256 tokenId,
         address wallet
     ) internal {
-        mintedPerAddress[tokenContract][tokenId][wallet] += numRequestedMint;
-        if (mintedPerAddress[tokenContract][tokenId][wallet] > limit) {
+        mintedPerAddress[tokenContract][wallet] += numRequestedMint;
+        if (mintedPerAddress[tokenContract][wallet] > limit) {
             revert UserExceedsMintLimit(
                 wallet,
                 limit,
-                mintedPerAddress[tokenContract][tokenId][wallet]
+                mintedPerAddress[tokenContract][wallet]
             );
         }
     }
