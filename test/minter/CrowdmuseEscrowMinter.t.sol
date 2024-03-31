@@ -263,6 +263,7 @@ contract CrowdmuseEscrowMinterTest is
     }
 
     function test_Redeem_OnlyOwnerCanCall(address _nonAdmin) external {
+        vm.assume(_nonAdmin != admin);
         _setupEscrowMinter();
         _mintToTokenRecipient(10);
 
@@ -318,7 +319,6 @@ contract CrowdmuseEscrowMinterTest is
     }
 
     function test_Refund_EscrowFundsReturned(address recipient) external {
-        vm.assume(recipient != address(0));
         _setupEscrowMinter();
         _mintTo(recipient, 10); // Simulate a deposit scenario
 
@@ -341,6 +341,42 @@ contract CrowdmuseEscrowMinterTest is
         assertTrue(
             finalDepositorBalance == initialEscrowBalance,
             "Depositor should have received a refund"
+        );
+    }
+
+    function test_Refund_EscrowFundsReturned_TwoDepositors(
+        address recipient,
+        address secondRecipient
+    ) external {
+        vm.assume(recipient != secondRecipient);
+        _setupEscrowMinter();
+        _mintTo(recipient, 10); // Simulate a deposit scenario
+        // Assume funds have been escrowed for 'product'
+        uint256 initialEscrowBalance = minter.balanceOf(address(product));
+        require(initialEscrowBalance > 0, "No funds in escrow to refund");
+
+        _mintTo(secondRecipient, 10); // Simulate a deposit scenario
+
+        // Execute refund by the product owner
+        _refundAsAdmin();
+
+        // Assertions after refund
+        uint256 finalEscrowBalance = minter.balanceOf(address(product));
+        uint256 finalDepositorBalance = usdc.balanceOf(recipient);
+        uint256 finalDepositor2Balance = usdc.balanceOf(secondRecipient);
+
+        assertEq(
+            finalEscrowBalance,
+            0,
+            "Escrow balance should be zero after refund"
+        );
+        assertTrue(
+            finalDepositorBalance == initialEscrowBalance,
+            "Depositor should have received a refund"
+        );
+        assertTrue(
+            finalDepositor2Balance == initialEscrowBalance,
+            "Depositor2 should have received a refund"
         );
     }
 
@@ -404,7 +440,7 @@ contract CrowdmuseEscrowMinterTest is
 
     function _mintTo(address to, uint256 quantity) internal {
         vm.assume(!_isContract(to));
-
+        vm.assume(to != address(0));
         // Set up the minting parameters
         bytes32 garmentType = keccak256(abi.encodePacked("size:one"));
         uint256 pricePerToken = minter.sale(address(product)).pricePerToken;
@@ -453,7 +489,9 @@ contract CrowdmuseEscrowMinterTest is
         minter.refund(address(product));
     }
 
-    function _isContract(address account) internal returns (bool isContract) {
+    function _isContract(
+        address account
+    ) internal view returns (bool isContract) {
         uint256 size;
         assembly {
             size := extcodesize(account)
