@@ -77,7 +77,7 @@ contract CrowdmuseEscrowMinterTest is
     }
 
     function test_ContractName() external view {
-        assertEq(minter.contractName(), "Crowdmuse Basic Minter");
+        assertEq(minter.contractName(), "Crowdmuse Escrow Minter");
     }
 
     function test_Version() external view {
