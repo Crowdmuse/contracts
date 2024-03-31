@@ -307,11 +307,7 @@ contract CrowdmuseEscrowMinterTest is
 
     function test_Refund_EscrowFundsReturned(address recipient) external {
         _setupEscrowMinter();
-        _mintTo(recipient, 10); // Simulate a deposit scenario
-
-        // Assume funds have been escrowed for 'product'
-        uint256 initialEscrowBalance = minter.balanceOf(address(product));
-        require(initialEscrowBalance > 0, "No funds in escrow to refund");
+        _mintTo(recipient, 10);
 
         // Execute refund by the product owner
         _refundAsAdmin();
@@ -319,7 +315,6 @@ contract CrowdmuseEscrowMinterTest is
         // Assertions after refund
         uint256 finalEscrowBalance = minter.balanceOf(address(product));
         uint256 finalDepositorBalance = usdc.balanceOf(recipient);
-
         assertEq(
             finalEscrowBalance,
             0,
@@ -334,9 +329,8 @@ contract CrowdmuseEscrowMinterTest is
     function test_Refund_EscrowRefundedEventEmitted(
         address recipient
     ) external {
-        // Setup: Deploy contracts, setup a product, and simulate sales to accumulate escrow
         _setupEscrowMinter();
-        _mintTo(recipient, 10); // Simulate a deposit scenario
+        _mintTo(recipient, 10);
 
         // Calculate expected refund based on salesConfig.pricePerToken and product.totalSupply()
         uint256 expectedTotalRefunded = minter.balanceOf(address(product));
@@ -362,7 +356,6 @@ contract CrowdmuseEscrowMinterTest is
         uint256[] memory initialBalances = new uint256[](numberOfDepositors);
         uint256[] memory expectedRefund = new uint256[](numberOfDepositors);
 
-        // Setup: Deploy contracts, setup a product, etc.
         _setupEscrowMinter();
         SalesConfig memory config = minter.sale(address(product));
 
