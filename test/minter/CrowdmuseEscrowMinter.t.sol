@@ -95,10 +95,9 @@ contract CrowdmuseEscrowMinterTest is
             erc20Address: address(0x333)
         });
 
-        // Encode the expected error for comparison
         bytes memory expectedError = abi.encodeWithSelector(
             Ownable.OwnableUnauthorizedAccount.selector,
-            nonAdmin // The address that attempted and failed the authorization check
+            nonAdmin
         );
         // Attempt to set sale config as a non-owner should fail
         vm.prank(address(nonAdmin));
@@ -266,7 +265,7 @@ contract CrowdmuseEscrowMinterTest is
 
     function test_Redeem_OnlyOwnerCanCall(address _nonAdmin) external {
         _setupEscrowMinter();
-        _mintToTokenRecipient(10); // Assume this mints tokens and accumulates some amount in escrow
+        _mintToTokenRecipient(10);
 
         // Attempt to redeem as a non-owner should fail with OwnableUnauthorizedAccount error
         bytes memory expectedError = abi.encodeWithSelector(
@@ -347,7 +346,7 @@ contract CrowdmuseEscrowMinterTest is
 
     function _setSale(SalesConfig memory salesConfig) internal {
         // Set sale config as the owner should succeed
-        vm.prank(admin); // Assuming `admin` is the owner
+        vm.prank(admin);
         minter.setSale(address(product), salesConfig);
     }
 
@@ -355,6 +354,7 @@ contract CrowdmuseEscrowMinterTest is
         // Set up the minting parameters
         bytes32 garmentType = keccak256(abi.encodePacked("size:one"));
         uint256 pricePerToken = minter.sale(address(product)).pricePerToken;
+
         // Approve the minter contract to spend the buyer's USDC
         vm.startPrank(tokenRecipient);
         usdc.mint(tokenRecipient, 10 ether);
