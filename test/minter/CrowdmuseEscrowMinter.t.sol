@@ -36,7 +36,7 @@ contract CrowdmuseEscrowMinterTest is
             productName: "MyProduct",
             productSymbol: "MPROD",
             baseUri: "ipfs://baseuri/",
-            maxAmountOfTokensPerMint: 10
+            maxAmountOfTokensPerMint: type(uint256).max
         });
         uint256[] memory contributionValues = new uint256[](1);
         contributionValues[0] = 1000;
@@ -57,13 +57,13 @@ contract CrowdmuseEscrowMinterTest is
             memory initialInventory = new ICrowdmuseProduct.Inventory[](1);
         initialInventory[0] = ICrowdmuseProduct.Inventory({
             keyName: "size:one",
-            garmentsRemaining: 100
+            garmentsRemaining: type(uint96).max
         });
 
         product = new CrowdmuseProduct(
             500, // _feeNumerator
             10000, // _contributorTotalSupply
-            100, // _garmentsAvailable
+            type(uint96).max, // _garmentsAvailable
             initialTask,
             tokenInfo,
             address(usdc),
@@ -402,6 +402,59 @@ contract CrowdmuseEscrowMinterTest is
         _refundAsAdmin();
     }
 
+    function test_Refund_EscrowFundsReturned_ArbitraryDepositors(
+        uint64 randomTime
+    ) external {
+        vm.warp(randomTime);
+        uint256 numberOfDepositors = _randomNumber(1, 100);
+        address[] memory depositors = new address[](numberOfDepositors);
+        uint256[] memory initialBalances = new uint256[](numberOfDepositors);
+        uint256[] memory expectedRefund = new uint256[](numberOfDepositors);
+
+        // Setup: Deploy contracts, setup a product, etc.
+        _setupEscrowMinter();
+        SalesConfig memory config = minter.sale(address(product));
+
+        for (uint256 i = 0; i < numberOfDepositors; i++) {
+            // Generate a unique address for each depositor
+            depositors[i] = address(
+                uint160(
+                    uint256(keccak256(abi.encodePacked(i, block.timestamp)))
+                )
+            );
+            // Record each depositor's initial balance
+            initialBalances[i] = usdc.balanceOf(depositors[i]);
+            // Simulate a deposit scenario for each depositor
+            uint256 quantity = _randomNumber(1, 3);
+            _mintTo(depositors[i], quantity);
+            expectedRefund[i] = config.pricePerToken * quantity;
+        }
+
+        // Assume funds have been escrowed for 'product'
+        uint256 initialEscrowBalance = minter.balanceOf(address(product));
+        require(initialEscrowBalance > 0, "No funds in escrow to refund");
+
+        // Execute refund by the product owner
+        _refundAsAdmin();
+
+        // Assertions after refund
+        uint256 finalEscrowBalance = minter.balanceOf(address(product));
+        assertEq(
+            finalEscrowBalance,
+            0,
+            "Escrow balance should be zero after refund"
+        );
+
+        for (uint256 i = 0; i < numberOfDepositors; i++) {
+            uint256 finalBalance = usdc.balanceOf(depositors[i]);
+            assertEq(
+                finalBalance,
+                expectedRefund[i],
+                "Depositor did not receive a refund"
+            );
+        }
+    }
+
     // TEST UTILS
     function _setupEscrowMinter() internal {
         // Set up the sales configuration for the product
@@ -418,7 +471,7 @@ contract CrowdmuseEscrowMinterTest is
     function _setMintSale() internal returns (SalesConfig memory salesConfig) {
         salesConfig = SalesConfig({
             saleStart: uint64(block.timestamp),
-            saleEnd: uint64(block.timestamp + 1 days),
+            saleEnd: type(uint64).max,
             maxTokensPerAddress: uint64(500),
             pricePerToken: uint96(1 ether),
             fundsRecipient: fundsRecipient,
@@ -447,7 +500,7 @@ contract CrowdmuseEscrowMinterTest is
 
         // Approve the minter contract to spend the buyer's USDC
         vm.startPrank(to);
-        usdc.mint(to, 10 ether);
+        usdc.mint(to, quantity * pricePerToken);
         usdc.approve(address(minter), pricePerToken * quantity);
 
         // Expect the EscrowDeposit event to be emitted
@@ -498,5 +551,18 @@ contract CrowdmuseEscrowMinterTest is
         }
 
         isContract = size > 0;
+    }
+
+    // Helper function to generate a random number within a range [min, max]
+    function _randomNumber(
+        uint256 min,
+        uint256 max
+    ) internal view returns (uint256) {
+        require(max > min, "max must be greater than min");
+        uint256 diff = max - min;
+        uint256 random = uint256(
+            keccak256(abi.encodePacked(block.timestamp, block.prevrandao))
+        ) % (diff + 1);
+        return min + random;
     }
 }
