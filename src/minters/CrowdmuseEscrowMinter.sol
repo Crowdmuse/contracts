@@ -12,7 +12,7 @@ import {ICrowdmuseEscrowMinter} from "../interfaces/ICrowdmuseEscrowMinter.sol";
 import {IMinterStorage} from "../interfaces/IMinterStorage.sol";
 
 /// @title CrowdmuseEscrowMinter
-/// @notice A minter that allows for basic purchasing on Crowdmuse
+/// @notice A minter that allows for escrow purchasing on Crowdmuse
 contract CrowdmuseEscrowMinter is
     LimitedMintPerAddress,
     ICrowdmuseEscrowMinter,
@@ -34,7 +34,7 @@ contract CrowdmuseEscrowMinter is
     /// @notice Retrieves the name of the minter contract
     /// @return A string representing the name of this minter contract
     function contractName() external pure returns (string memory) {
-        return "Crowdmuse Basic Minter";
+        return "Crowdmuse Escrow Minter";
     }
 
     /// @notice Retrieves the version of the minter contract
