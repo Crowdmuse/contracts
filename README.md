@@ -26,6 +26,14 @@ forge script script/DeployCrowdmuseProduct.s.sol:DeployCrowdmuseProduct --rpc-ur
 forge script script/DeployCrowdmuseBasicMinter.s.sol:DeployCrowdmuseBasicMinter --rpc-url YOUR_RPC_URL --private-key YOUR_PRIVATE_KEY --broadcast --verify --etherscan-api-key BLOCK_SCANNER_API_KEY -vvvv
 ```
 
+## Deploy - CrowdmuseEscrowMinter
+
+- base-sepolia: [0xa701deC0D72ae774f00b012744fEB4E64eDC2a2b](https://sepolia.basescan.org/address/0xa701deC0D72ae774f00b012744fEB4E64eDC2a2b#code)
+
+```
+forge script script/DeployCrowdmuseEscrowMinter.s.sol:DeployCrowdmuseEscrowMinter --rpc-url YOUR_RPC_URL --private-key YOUR_PRIVATE_KEY --broadcast --verify --etherscan-api-key BLOCK_SCANNER_API_KEY -vvvv
+```
+
 ## Contributing
 
 We're looking for developers to help us build out tests using Hardhat & Foundry. This project is a great opportunity for anyone looking to upskill in Solidity, learn from other developers and get a public record of their progress. Feel free to contact one of the team or raise a pull request. My telegram is Amirjab21 in case you want to chat about anything.
