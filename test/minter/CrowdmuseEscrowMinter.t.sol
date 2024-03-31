@@ -515,7 +515,6 @@ contract CrowdmuseEscrowMinterTest is
         isContract = size > 0;
     }
 
-    // Helper function to generate a random number within a range [min, max]
     function _randomNumber(
         uint256 min,
         uint256 max
