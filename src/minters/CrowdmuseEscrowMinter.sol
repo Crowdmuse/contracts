@@ -148,22 +148,14 @@ contract CrowdmuseEscrowMinter is
         emit SaleSet(target, salesConfig);
     }
 
-    /// @notice Returns the sale config for a given token
+    /// @notice Retrieves the sale configuration for a specified product.
+    /// @dev Returns the sales configuration struct for the provided token contract address.
+    /// @param tokenContract The address of the token contract for which the sale configuration is requested.
+    /// @return The sales configuration struct for the given token contract.
     function sale(
         address tokenContract
     ) external view returns (SalesConfig memory) {
         return salesConfigs[tokenContract];
-    }
-
-    /// @dev Modifier to restrict functions to the owner of the target contract.
-    /// Throws `OwnableUnauthorizedAccount` if the caller is not the owner.
-    /// @param target Address of the target contract to check ownership against.
-    modifier onlyOwner(address target) {
-        if (Ownable(target).owner() != msg.sender) {
-            revert Ownable.OwnableUnauthorizedAccount(msg.sender);
-        }
-
-        _;
     }
 
     /// @notice Redeems escrowed funds for a given product, transferring them to the product's funds recipient.
@@ -188,6 +180,17 @@ contract CrowdmuseEscrowMinter is
         );
         balanceOf[target] = 0;
         delete salesConfigs[target];
+    }
+
+    /// @dev Modifier to restrict functions to the owner of the target contract.
+    /// Throws `OwnableUnauthorizedAccount` if the caller is not the owner.
+    /// @param target Address of the target contract to check ownership against.
+    modifier onlyOwner(address target) {
+        if (Ownable(target).owner() != msg.sender) {
+            revert Ownable.OwnableUnauthorizedAccount(msg.sender);
+        }
+
+        _;
     }
     // TODO: add method for refunding escrowed funds
 }
