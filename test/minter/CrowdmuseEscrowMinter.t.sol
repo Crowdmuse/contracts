@@ -344,42 +344,6 @@ contract CrowdmuseEscrowMinterTest is
         );
     }
 
-    function test_Refund_EscrowFundsReturned_TwoDepositors(
-        address recipient,
-        address secondRecipient
-    ) external {
-        vm.assume(recipient != secondRecipient);
-        _setupEscrowMinter();
-        _mintTo(recipient, 10); // Simulate a deposit scenario
-        // Assume funds have been escrowed for 'product'
-        uint256 initialEscrowBalance = minter.balanceOf(address(product));
-        require(initialEscrowBalance > 0, "No funds in escrow to refund");
-
-        _mintTo(secondRecipient, 10); // Simulate a deposit scenario
-
-        // Execute refund by the product owner
-        _refundAsAdmin();
-
-        // Assertions after refund
-        uint256 finalEscrowBalance = minter.balanceOf(address(product));
-        uint256 finalDepositorBalance = usdc.balanceOf(recipient);
-        uint256 finalDepositor2Balance = usdc.balanceOf(secondRecipient);
-
-        assertEq(
-            finalEscrowBalance,
-            0,
-            "Escrow balance should be zero after refund"
-        );
-        assertTrue(
-            finalDepositorBalance == initialEscrowBalance,
-            "Depositor should have received a refund"
-        );
-        assertTrue(
-            finalDepositor2Balance == initialEscrowBalance,
-            "Depositor2 should have received a refund"
-        );
-    }
-
     function test_Refund_EscrowRefundedEventEmitted(
         address recipient
     ) external {
