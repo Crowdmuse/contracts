@@ -2,6 +2,7 @@
 pragma solidity ^0.8.10;
 
 interface ICrowdmuseEscrowMinter {
+    error EscrowBalanceNotZero();
     /// @notice Escrow Deposit Event
     /// @param target collection for escrow
     /// @param from The caller of the deposit

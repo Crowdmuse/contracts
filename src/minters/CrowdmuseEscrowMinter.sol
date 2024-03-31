@@ -198,7 +198,7 @@ contract CrowdmuseEscrowMinter is
             address owner = productContract.ownerOf(tokenId);
 
             // Ensure the owner is valid and the price per token is not zero to avoid unnecessary transfers
-            if (owner != address(0) && config.pricePerToken > 0) {
+            if (config.pricePerToken > 0) {
                 IERC20(config.erc20Address).transfer(
                     owner,
                     config.pricePerToken
@@ -212,11 +212,7 @@ contract CrowdmuseEscrowMinter is
 
         // After refunding all owners, ensure any remaining balance due to rounding or errors is cleared.
         if (balanceOf[target] > 0) {
-            IERC20(config.erc20Address).transfer(
-                config.fundsRecipient,
-                balanceOf[target]
-            );
-            balanceOf[target] = 0;
+            revert EscrowBalanceNotZero();
         }
 
         // Emit an event to log the refund action
