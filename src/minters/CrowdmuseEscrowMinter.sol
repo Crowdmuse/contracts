@@ -152,12 +152,10 @@ contract CrowdmuseEscrowMinter is
     /// @notice Sets the sale config for a given token
     /// @param target The target contract for which the sale config is being set
     /// @param salesConfig The sales configuration
-    function setSale(address target, SalesConfig memory salesConfig) external {
-        require(
-            Ownable(target).owner() == msg.sender,
-            "Caller is not the owner"
-        );
-
+    function setSale(
+        address target,
+        SalesConfig memory salesConfig
+    ) external onlyOwner(target) {
         salesConfigs[target] = salesConfig;
 
         // Emit event
@@ -171,13 +169,16 @@ contract CrowdmuseEscrowMinter is
         return salesConfigs[tokenContract];
     }
 
-    // TODO: add method for redeeming escrowed funds
-    function redeem(address target) external {
+    modifier onlyOwner(address target) {
         require(
             Ownable(target).owner() == msg.sender,
             "Caller is not the owner"
         );
+        _;
+    }
 
+    // TODO: add method for redeeming escrowed funds
+    function redeem(address target) external onlyOwner(target) {
         SalesConfig storage config = salesConfigs[target];
 
         uint256 amount = balanceOf[target];
