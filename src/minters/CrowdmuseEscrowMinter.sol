@@ -76,35 +76,7 @@ contract CrowdmuseEscrowMinter is
         SalesConfig storage config = salesConfigs[target];
         uint256 totalPrice = config.pricePerToken * quantity;
 
-        // If sales config does not exist this first check will always fail.
-        // Check sale end
-        if (block.timestamp > config.saleEnd) {
-            revert SaleEnded();
-        }
-
-        // Check sale start
-        if (block.timestamp < config.saleStart) {
-            revert SaleHasNotStarted();
-        }
-
-        // Check USDC approval amount
-        if (
-            totalPrice >
-            IERC20(config.erc20Address).allowance(msg.sender, address(this))
-        ) {
-            revert WrongValueSent();
-        }
-
-        // Check minted per address limit
-        if (config.maxTokensPerAddress > 0) {
-            _requireMintNotOverLimitAndUpdate(
-                config.maxTokensPerAddress,
-                quantity,
-                target,
-                tokenId,
-                mintTo
-            );
-        }
+        _validateSaleConditions(target, mintTo, quantity);
 
         // Mint the token
         tokenId = ICrowdmuseProduct(target).buyPrepaidNFT(
@@ -118,22 +90,7 @@ contract CrowdmuseEscrowMinter is
             emit MintComment(mintTo, target, tokenId, quantity, comment);
         }
 
-        // Transfer USDC to escrow
-        IERC20(config.erc20Address).transferFrom(
-            msg.sender,
-            address(this),
-            totalPrice
-        );
-
-        // Track escrow funds for product
-        unchecked {
-            if (target != address(0)) {
-                balanceOf[target] += totalPrice;
-            }
-        }
-
-        // Emit escrow event
-        emit EscrowDeposit(target, msg.sender, totalPrice);
+        _transferToEscrow(target, totalPrice);
     }
 
     /// @notice Sets the sale config for a given token
@@ -229,6 +186,8 @@ contract CrowdmuseEscrowMinter is
         _;
     }
 
+    /// @notice Refunds the escrowed funds to the original token owners for a specified product.
+    /// @param target The address of the product contract.
     function _refund(address target) internal {
         SalesConfig storage config = salesConfigs[target];
         IERC721A productContract = IERC721A(target);
@@ -245,5 +204,71 @@ contract CrowdmuseEscrowMinter is
                 ? balanceOf[target] - config.pricePerToken
                 : 0;
         }
+    }
+
+    /// @dev Validates the sale conditions before minting. Reverts if conditions are not met.
+    /// @param target The target CrowdmuseProduct contract address where the mint will occur
+    /// @param mintTo The address that will receive the minted tokens
+    /// @param quantity The quantity of tokens to mint
+    function _validateSaleConditions(
+        address target,
+        address mintTo,
+        uint256 quantity
+    ) internal {
+        SalesConfig storage config = salesConfigs[target];
+        uint256 totalPrice = config.pricePerToken * quantity;
+
+        // If sales config does not exist this first check will always fail.
+        // Check sale end
+        if (block.timestamp > config.saleEnd) {
+            revert SaleEnded();
+        }
+
+        // Check sale start
+        if (block.timestamp < config.saleStart) {
+            revert SaleHasNotStarted();
+        }
+
+        // Check USDC approval amount
+        if (
+            totalPrice >
+            IERC20(config.erc20Address).allowance(msg.sender, address(this))
+        ) {
+            revert WrongValueSent();
+        }
+
+        // Check minted per address limit
+        if (config.maxTokensPerAddress > 0) {
+            _requireMintNotOverLimitAndUpdate(
+                config.maxTokensPerAddress,
+                quantity,
+                target,
+                mintTo
+            );
+        }
+    }
+
+    /// @dev Transfers the specified amount to escrow and updates the escrow balance for the target product.
+    /// @param target The product contract address.
+    /// @param amount The amount to transfer to escrow.
+    function _transferToEscrow(address target, uint256 amount) internal {
+        SalesConfig storage config = salesConfigs[target];
+
+        // Transfer USDC to escrow
+        IERC20(config.erc20Address).transferFrom(
+            msg.sender,
+            address(this),
+            amount
+        );
+
+        // Track escrow funds for product
+        unchecked {
+            if (target != address(0)) {
+                balanceOf[target] += amount;
+            }
+        }
+
+        // Emit escrow event
+        emit EscrowDeposit(target, msg.sender, amount);
     }
 }

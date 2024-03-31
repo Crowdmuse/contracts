@@ -14,7 +14,6 @@ interface ILimitedMintPerAddressErrors {
 interface ILimitedMintPerAddress is IERC165, ILimitedMintPerAddressErrors {
     function getMintedPerWallet(
         address token,
-        uint256 tokenId,
         address wallet
     ) external view returns (uint256);
 }
