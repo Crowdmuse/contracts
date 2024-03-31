@@ -235,7 +235,7 @@ contract CrowdmuseEscrowMinterTest is Test, ICrowdmuseEscrow, IMinterStorage {
         );
     }
 
-    function testRedeem() public {
+    function test_Redeem() public {
         _setupEscrowMinter();
 
         uint256 initialFundsRecipientBalance = usdc.balanceOf(fundsRecipient);
@@ -269,6 +269,21 @@ contract CrowdmuseEscrowMinterTest is Test, ICrowdmuseEscrow, IMinterStorage {
         );
     }
 
+    function test_Redeem_OnlyOwnerCanCall(address _nonAdmin) external {
+        _setupEscrowMinter();
+        _mintToTokenRecipient(10); // Assume this mints tokens and accumulates some amount in escrow
+
+        // Attempt to redeem as a non-owner should fail with OwnableUnauthorizedAccount error
+        bytes memory expectedError = abi.encodeWithSelector(
+            Ownable.OwnableUnauthorizedAccount.selector,
+            _nonAdmin
+        );
+        vm.expectRevert(expectedError);
+
+        vm.prank(_nonAdmin);
+        minter.redeem(address(product));
+    }
+
     // TEST UTILS
     function _setupEscrowMinter() internal {
         // Set up the sales configuration for the product
@@ -286,7 +301,7 @@ contract CrowdmuseEscrowMinterTest is Test, ICrowdmuseEscrow, IMinterStorage {
         salesConfig = SalesConfig({
             saleStart: uint64(block.timestamp),
             saleEnd: uint64(block.timestamp + 1 days),
-            maxTokensPerAddress: uint64(5),
+            maxTokensPerAddress: uint64(500),
             pricePerToken: uint96(1 ether),
             fundsRecipient: fundsRecipient,
             erc20Address: address(usdc)
