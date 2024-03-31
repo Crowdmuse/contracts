@@ -2,6 +2,8 @@
 
 pragma solidity ^0.8.10;
 
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
 interface ICrowdmuseProduct {
     /// @notice Enumeration for task statuses
     enum TaskStatus {
@@ -91,4 +93,14 @@ interface ICrowdmuseProduct {
         bytes32 garmentType,
         uint256 _quantity
     ) external returns (uint256);
+
+    /// @notice Returns the maximum number of tokens that can be minted in a single operation
+    /// @return The maximum number of tokens per mint
+    function getMaxAmountOfTokensPerMint() external view returns (uint256);
+
+    /// @notice Returns the maximum number of tokens that can be minted in a single operation
+    function buyNFTPrice() external view returns (uint256);
+
+    /// ERC20 token used for payment
+    function paymentToken() external view returns (IERC20);
 }
