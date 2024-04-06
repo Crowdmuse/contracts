@@ -107,23 +107,8 @@ contract CrowdmuseEscrowMinter is
     function setSale(
         address target,
         MinimumEscrowDuration duration
-    ) external onlyOwner(target) {
-        if (salesConfigs[target].pricePerToken != 0) {
-            revert EscrowAlreadyExists();
-        }
-
-        // Convert enum to days
-        uint64 minimumNumberDays;
-        if (duration == MinimumEscrowDuration.Days15) {
-            minimumNumberDays = 15;
-        } else if (duration == MinimumEscrowDuration.Days30) {
-            minimumNumberDays = 30;
-        } else if (duration == MinimumEscrowDuration.Days60) {
-            minimumNumberDays = 60;
-        } else if (duration == MinimumEscrowDuration.Days90) {
-            minimumNumberDays = 90;
-        }
-
+    ) external onlyOwner(target) onlyIfInactive(target) {
+        uint64 minimumNumberDays = getDaysForEnum(duration);
         uint64 saleEnd = uint64(block.timestamp + (minimumNumberDays * 1 days));
 
         ICrowdmuseProduct product = ICrowdmuseProduct(target);
@@ -330,12 +315,34 @@ contract CrowdmuseEscrowMinter is
         return Ownable(target).owner() == msg.sender;
     }
 
+    function getDaysForEnum(
+        MinimumEscrowDuration duration
+    ) internal pure returns (uint64 durationDays) {
+        if (duration == MinimumEscrowDuration.Days15) {
+            durationDays = 15;
+        } else if (duration == MinimumEscrowDuration.Days30) {
+            durationDays = 30;
+        } else if (duration == MinimumEscrowDuration.Days60) {
+            durationDays = 60;
+        } else if (duration == MinimumEscrowDuration.Days90) {
+            durationDays = 90;
+        }
+    }
+
     /// @dev Modifier to restrict functions to the owner of the target contract.
     /// Throws `OwnableUnauthorizedAccount` if the caller is not the owner.
     /// @param target Address of the target contract to check ownership against.
     modifier onlyOwner(address target) {
         if (!isOwner(target)) {
             revert Ownable.OwnableUnauthorizedAccount(msg.sender);
+        }
+
+        _;
+    }
+
+    modifier onlyIfInactive(address target) {
+        if (salesConfigs[target].pricePerToken != 0) {
+            revert EscrowAlreadyExists();
         }
 
         _;
