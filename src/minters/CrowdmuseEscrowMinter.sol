@@ -176,10 +176,21 @@ contract CrowdmuseEscrowMinter is
     /// Can only be called by the owner of the target product contract.
     /// Resets the product's escrow balance after the refund process.
     /// @param target The address of the target product contract whose escrowed funds are to be refunded.
-    function refund(address target) external onlyOwner(target) nonReentrant {
+    function refund(address target) external nonReentrant {
         SalesConfig storage config = salesConfigs[target];
         IERC721A productContract = IERC721A(target);
         uint256 totalSupply = productContract.totalSupply();
+
+        // only owner can revert before saleEnd
+        bool _isOwner = isOwner(target);
+        if (block.timestamp < config.saleEnd && !_isOwner) {
+            revert EscrowNotEnded();
+        }
+
+        // only owner & tokenOwners can revert after saleEnd
+        if (!_isOwner && IERC721A(target).ownerOf(1) != msg.sender) {
+            revert EscrowNotTokenOwner();
+        }
 
         // verify escrow has price
         if (config.pricePerToken == 0) {
@@ -290,11 +301,15 @@ contract CrowdmuseEscrowMinter is
         emit EscrowDeposit(target, msg.sender, amount);
     }
 
+    function isOwner(address target) internal view returns (bool) {
+        return Ownable(target).owner() == msg.sender;
+    }
+
     /// @dev Modifier to restrict functions to the owner of the target contract.
     /// Throws `OwnableUnauthorizedAccount` if the caller is not the owner.
     /// @param target Address of the target contract to check ownership against.
     modifier onlyOwner(address target) {
-        if (Ownable(target).owner() != msg.sender) {
+        if (!isOwner(target)) {
             revert Ownable.OwnableUnauthorizedAccount(msg.sender);
         }
 

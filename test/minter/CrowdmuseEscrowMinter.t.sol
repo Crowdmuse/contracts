@@ -434,25 +434,25 @@ contract CrowdmuseEscrowMinterTest is
         uint256 initialEscrowBalance = minter.balanceOf(address(product));
         require(initialEscrowBalance > 0, "No funds in escrow to refund");
 
-        // // Execute refund by the product owner
-        // _refundAsAdmin();
+        // Execute refund by the product owner
+        _refundAsAdmin();
 
-        // // Assertions after refund
-        // uint256 finalEscrowBalance = minter.balanceOf(address(product));
-        // assertEq(
-        //     finalEscrowBalance,
-        //     0,
-        //     "Escrow balance should be zero after refund"
-        // );
+        // Assertions after refund
+        uint256 finalEscrowBalance = minter.balanceOf(address(product));
+        assertEq(
+            finalEscrowBalance,
+            0,
+            "Escrow balance should be zero after refund"
+        );
 
-        // for (uint256 i = 0; i < numberOfDepositors; i++) {
-        //     uint256 finalBalance = usdc.balanceOf(depositors[i]);
-        //     assertEq(
-        //         finalBalance,
-        //         expectedRefund[i],
-        //         "Depositor did not receive a refund"
-        //     );
-        // }
+        for (uint256 i = 0; i < numberOfDepositors; i++) {
+            uint256 finalBalance = usdc.balanceOf(depositors[i]);
+            assertEq(
+                finalBalance,
+                expectedRefund[i],
+                "Depositor did not receive a refund"
+            );
+        }
     }
 
     function test_Refund_ConfigDeletedAfterRefund() external {
@@ -464,6 +464,36 @@ contract CrowdmuseEscrowMinterTest is
 
         // Verify that the sales configuration has been deleted
         _verifyNoSalesConfig();
+    }
+
+    function test_RefundCallableByTokenOwnerAfterMinimumDays(
+        address _buyer,
+        address _notBuyer
+    ) external {
+        vm.assume(
+            _buyer != address(0) &&
+                _notBuyer != address(0) &&
+                _buyer != _notBuyer
+        );
+
+        // Initial setup: Mint a token to _buyer, set up the sale and wait for the sale duration to pass
+        _setupEscrowMinter();
+        _mintTo(_buyer, 1);
+        uint256 saleDuration = 90 days;
+        // Simulate time passing beyond the sale duration
+        vm.warp(block.timestamp + saleDuration + 1 days);
+
+        // Attempt to refund as a non-token owner
+        vm.prank(_notBuyer);
+        bytes memory expectedError = abi.encodeWithSelector(
+            EscrowNotTokenOwner.selector
+        );
+        vm.expectRevert(expectedError);
+        minter.refund(address(product));
+
+        // Successfully refund as the token owner
+        vm.prank(_buyer);
+        minter.refund(address(product));
     }
 
     // TEST UTILS
