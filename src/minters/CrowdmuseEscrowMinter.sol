@@ -97,14 +97,33 @@ contract CrowdmuseEscrowMinter is
 
     /// @notice Sets the sale config for a given token
     /// @param target The target contract for which the sale config is being set
-    function setSale(address target) external onlyOwner(target) {
+    function setSale(
+        address target,
+        MinimumEscrowDuration duration
+    ) external onlyOwner(target) {
         if (salesConfigs[target].pricePerToken != 0) {
             revert EscrowAlreadyExists();
         }
+
+        // Convert enum to days
+        uint64 minimumNumberDays;
+        if (duration == MinimumEscrowDuration.Days15) {
+            minimumNumberDays = 15;
+        } else if (duration == MinimumEscrowDuration.Days30) {
+            minimumNumberDays = 30;
+        } else if (duration == MinimumEscrowDuration.Days60) {
+            minimumNumberDays = 60;
+        } else if (duration == MinimumEscrowDuration.Days90) {
+            minimumNumberDays = 90;
+        }
+
+        uint64 saleEnd = uint64(block.timestamp + (minimumNumberDays * 1 days));
+
         ICrowdmuseProduct product = ICrowdmuseProduct(target);
         SalesConfig memory salesConfig = SalesConfig({
+            // set saleStart to now
             saleStart: 0,
-            saleEnd: type(uint64).max,
+            saleEnd: saleEnd,
             maxTokensPerAddress: uint64(product.getMaxAmountOfTokensPerMint()),
             pricePerToken: uint96(product.buyNFTPrice()),
             fundsRecipient: target,
@@ -219,7 +238,7 @@ contract CrowdmuseEscrowMinter is
 
         // If sales config does not exist this first check will always fail.
         // Check sale end
-        if (block.timestamp > config.saleEnd) {
+        if (0 == config.pricePerToken) {
             revert SaleEnded();
         }
 

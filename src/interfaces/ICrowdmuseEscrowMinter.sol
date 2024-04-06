@@ -46,4 +46,11 @@ interface ICrowdmuseEscrowMinter {
         address indexed erc20Address,
         uint256 totalRefunded
     );
+
+    enum MinimumEscrowDuration {
+        Days15,
+        Days30,
+        Days60,
+        Days90
+    }
 }
