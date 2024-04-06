@@ -56,7 +56,7 @@ contract CrowdmuseEscrowMinter is
         bytes32 garmentType,
         uint256 quantity,
         string memory comment
-    ) external returns (uint256 tokenId) {
+    ) external nonReentrant returns (uint256 tokenId) {
         tokenId = _mint(target, mintTo, garmentType, quantity, comment);
     }
 
@@ -93,15 +93,30 @@ contract CrowdmuseEscrowMinter is
         }
 
         _transferToEscrow(target, totalPrice);
+
+        // Redeem if sold out
+        if (ICrowdmuseProduct(target).garmentsAvailable() == 0) {
+            _redeem(target);
+        }
+
+        return tokenId;
     }
 
-    /// @notice Sets the sale config for a given token
-    /// @param target The target contract for which the sale config is being set
-    function setSale(address target) external onlyOwner(target) {
+    /// @notice Configures the sale for a specific product by setting various parameters including the sale duration based on a predefined enum.
+    /// @dev This function sets the sale configuration for the target contract and emits a SaleSet event upon successful execution.
+    /// @param target The address of the target contract for which the sale configuration is being set.
+    /// @param duration The minimum escrow duration selected from the MinimumEscrowDuration enum.
+    function setSale(
+        address target,
+        MinimumEscrowDuration duration
+    ) external onlyOwner(target) onlyIfInactive(target) {
+        uint64 minimumNumberDays = getDaysForEnum(duration);
+        uint64 saleEnd = uint64(block.timestamp + (minimumNumberDays * 1 days));
+
         ICrowdmuseProduct product = ICrowdmuseProduct(target);
         SalesConfig memory salesConfig = SalesConfig({
-            saleStart: 0,
-            saleEnd: type(uint64).max,
+            saleStart: uint64(block.timestamp),
+            saleEnd: saleEnd,
             maxTokensPerAddress: uint64(product.getMaxAmountOfTokensPerMint()),
             pricePerToken: uint96(product.buyNFTPrice()),
             fundsRecipient: target,
@@ -129,6 +144,14 @@ contract CrowdmuseEscrowMinter is
     /// Deletes the sales configuration for the target product after redeeming the funds.
     /// @param target Address of the target product contract whose escrowed funds are to be redeemed.
     function redeem(address target) external onlyOwner(target) nonReentrant {
+        _redeem(target);
+    }
+
+    /// @notice Redeems escrowed funds for a given product, transferring them to the product's funds recipient.
+    /// Can only be called by the owner of the target product contract.
+    /// Deletes the sales configuration for the target product after redeeming the funds.
+    /// @param target Address of the target product contract whose escrowed funds are to be redeemed.
+    function _redeem(address target) internal {
         SalesConfig storage config = salesConfigs[target];
 
         uint256 amount = balanceOf[target];
@@ -152,12 +175,23 @@ contract CrowdmuseEscrowMinter is
     /// Iterates over each tokenId from 1 to product.totalSupply(), paying each product.ownerOf(tokenId).
     /// The amount paid is determined by config.pricePerToken.
     /// Can only be called by the owner of the target product contract.
+    /// Can be called by any token owner of the target product contract after saleEnd.
     /// Resets the product's escrow balance after the refund process.
     /// @param target The address of the target product contract whose escrowed funds are to be refunded.
-    function refund(address target) external onlyOwner(target) nonReentrant {
+    function refund(address target) external nonReentrant {
         SalesConfig storage config = salesConfigs[target];
         IERC721A productContract = IERC721A(target);
         uint256 totalSupply = productContract.totalSupply();
+
+        if (!isOwner(target)) {
+            // only owner can revert before saleEnd
+            if (block.timestamp < config.saleEnd) {
+                revert EscrowNotEnded();
+                // tokenOwners can revert after saleEnd
+            } else if (IERC721A(target).balanceOf(msg.sender) == 0) {
+                revert EscrowNotTokenOwner();
+            }
+        }
 
         // verify escrow has price
         if (config.pricePerToken == 0) {
@@ -216,7 +250,7 @@ contract CrowdmuseEscrowMinter is
 
         // If sales config does not exist this first check will always fail.
         // Check sale end
-        if (block.timestamp > config.saleEnd) {
+        if (config.pricePerToken == 0) {
             revert SaleEnded();
         }
 
@@ -268,12 +302,56 @@ contract CrowdmuseEscrowMinter is
         emit EscrowDeposit(target, msg.sender, amount);
     }
 
+    /// @dev Checks if the redeem conditions are met.
+    /// @param target The target CrowdmuseProduct contract address to check
+    /// @return bool Returns true if conditions for auto redeem are met.
+    function _shouldAutoRedeem(address target) internal view returns (bool) {
+        uint256 totalSupply = IERC721A(target).totalSupply();
+        uint256 garmentsAvailable = ICrowdmuseProduct(target)
+            .garmentsAvailable();
+        return totalSupply == garmentsAvailable;
+    }
+
+    /// @dev Checks if the caller is the owner of the target contract.
+    /// @param target The target contract address whose ownership is to be verified.
+    /// @return bool Returns true if the caller is the owner of the target contract.
+    function isOwner(address target) internal view returns (bool) {
+        return Ownable(target).owner() == msg.sender;
+    }
+
+    /// @dev Converts a MinimumEscrowDuration enum value to its corresponding number of days.
+    /// @param duration The duration value of the enum MinimumEscrowDuration.
+    /// @return durationDays The number of days corresponding to the enum value.
+    function getDaysForEnum(
+        MinimumEscrowDuration duration
+    ) internal pure returns (uint64 durationDays) {
+        if (duration == MinimumEscrowDuration.Days15) {
+            durationDays = 15;
+        } else if (duration == MinimumEscrowDuration.Days30) {
+            durationDays = 30;
+        } else if (duration == MinimumEscrowDuration.Days60) {
+            durationDays = 60;
+        } else if (duration == MinimumEscrowDuration.Days90) {
+            durationDays = 90;
+        }
+    }
+
     /// @dev Modifier to restrict functions to the owner of the target contract.
     /// Throws `OwnableUnauthorizedAccount` if the caller is not the owner.
     /// @param target Address of the target contract to check ownership against.
     modifier onlyOwner(address target) {
-        if (Ownable(target).owner() != msg.sender) {
+        if (!isOwner(target)) {
             revert Ownable.OwnableUnauthorizedAccount(msg.sender);
+        }
+
+        _;
+    }
+
+    /// @dev Ensures a sale configuration is not already active for the given target.
+    /// @param target The target contract address for which the sale config is being verified.
+    modifier onlyIfInactive(address target) {
+        if (salesConfigs[target].pricePerToken != 0) {
+            revert EscrowAlreadyExists();
         }
 
         _;

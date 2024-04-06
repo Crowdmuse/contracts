@@ -103,4 +103,7 @@ interface ICrowdmuseProduct {
 
     /// ERC20 token used for payment
     function paymentToken() external view returns (IERC20);
+
+    /// Remaining garments (NFTs) available for purchase
+    function garmentsAvailable() external view returns (uint256);
 }

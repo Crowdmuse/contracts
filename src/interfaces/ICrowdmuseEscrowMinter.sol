@@ -10,6 +10,15 @@ interface ICrowdmuseEscrowMinter {
     /// @dev Error thrown when an operation that requires a non-zero price for escrow is attempted with a zero price.
     error EscrowPriceZero();
 
+    /// @dev Error thrown when an operation that requires the escrow to not exist is attempted, but the escrow already exists.
+    error EscrowAlreadyExists();
+
+    /// @dev Error thrown when an operation that requires the escrow to exist beyond saleEnd is attempted, but the time is still before saleEnd.
+    error EscrowNotEnded();
+
+    /// @dev Error thrown when an operation that requires the caller be an escrow tokens owner is attempted, but the msg.sender is not a token owner.
+    error EscrowNotTokenOwner();
+
     /// @notice Escrow Deposit Event
     /// @param target collection for escrow
     /// @param from The caller of the deposit
@@ -43,4 +52,12 @@ interface ICrowdmuseEscrowMinter {
         address indexed erc20Address,
         uint256 totalRefunded
     );
+
+    /// @notice Enumerates the minimum durations (in days) that can be set for an escrow period.
+    enum MinimumEscrowDuration {
+        Days15, // Represents a minimum duration of 15 days.
+        Days30, // Represents a minimum duration of 30 days.
+        Days60, // Represents a minimum duration of 60 days.
+        Days90 // Represents a minimum duration of 90 days.
+    }
 }
