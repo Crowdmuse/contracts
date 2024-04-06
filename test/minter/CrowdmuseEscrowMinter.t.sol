@@ -176,7 +176,7 @@ contract CrowdmuseEscrowMinterTest is
         );
     }
 
-    function test_SetSale_ThrowsErrorIfSaleAlreadyExists() external {
+    function test_SetSale_ThrowsErrorIfEscrowAlreadyExists() external {
         // Set up the escrow minter with initial sale configuration
         _setupEscrowMinter();
 
