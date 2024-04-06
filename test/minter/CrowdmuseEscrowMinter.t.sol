@@ -445,7 +445,7 @@ contract CrowdmuseEscrowMinterTest is
     ) external {
         vm.assume(randomTime < block.timestamp + 90 days);
         vm.warp(randomTime);
-        uint256 numberOfDepositors = _randomNumber(1, 100);
+        uint256 numberOfDepositors = _randomNumber(1, 1000);
         address[] memory depositors = new address[](numberOfDepositors);
         uint256[] memory initialBalances = new uint256[](numberOfDepositors);
         uint256[] memory expectedRefund = new uint256[](numberOfDepositors);
