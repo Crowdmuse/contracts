@@ -3,6 +3,7 @@ pragma solidity ^0.8.10;
 
 import "forge-std/Test.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {IERC721A} from "erc721a/contracts/IERC721A.sol";
 import {CrowdmuseProduct} from "../../src/CrowdmuseProduct.sol";
 import {ICrowdmuseProduct} from "../../src/interfaces/ICrowdmuseProduct.sol";
 import {ICrowdmuseEscrowMinter} from "../../src/interfaces/ICrowdmuseEscrowMinter.sol";
@@ -55,15 +56,16 @@ contract CrowdmuseEscrowMinterTest is
         });
         ICrowdmuseProduct.Inventory[]
             memory initialInventory = new ICrowdmuseProduct.Inventory[](1);
+        uint64 garmentsAvailable = 10_000;
         initialInventory[0] = ICrowdmuseProduct.Inventory({
             keyName: "size:one",
-            garmentsRemaining: type(uint96).max
+            garmentsRemaining: garmentsAvailable
         });
 
         product = new CrowdmuseProduct(
             500, // _feeNumerator
             10000, // _contributorTotalSupply
-            type(uint96).max, // _garmentsAvailable
+            garmentsAvailable, // _garmentsAvailable
             initialTask,
             tokenInfo,
             address(usdc),
@@ -257,7 +259,7 @@ contract CrowdmuseEscrowMinterTest is
         );
     }
 
-    function test_MintFlowAndEscrowDeposit() external {
+    function test_MintFlow_EscrowDeposit() external {
         _setupEscrowMinter();
 
         // Set up the minting parameters
@@ -278,6 +280,41 @@ contract CrowdmuseEscrowMinterTest is
             newBalanceOfTarget,
             expectedNewBalance,
             "balanceOf[target] should be correctly updated."
+        );
+    }
+
+    function test_MintFlow_AutoRedeemOnFinalMint(address buyer) external {
+        // Setup and mint tokens to reach the garmentAvailable limit
+        _setupEscrowMinter();
+        uint256 garmentsAvailable = ICrowdmuseProduct(address(product))
+            .garmentsAvailable();
+
+        _mintTo(buyer, garmentsAvailable - 1);
+        bytes32 garmentType = keccak256(abi.encodePacked("size:one"));
+
+        emit log_uint(garmentsAvailable * product.buyNFTPrice());
+        vm.startPrank(buyer);
+        usdc.mint(buyer, product.buyNFTPrice());
+        usdc.approve(address(minter), product.buyNFTPrice());
+        // Expect the automatic redemption to occur during the final mint
+        // This requires that you've implemented or will implement an event emission on redeem to verify its execution
+        vm.expectEmit(true, true, true, true);
+        emit EscrowRedeemed(
+            address(product),
+            address(product),
+            address(usdc),
+            garmentsAvailable * product.buyNFTPrice()
+        );
+        // Perform the final mint that should trigger the auto redeem
+        // Call the mint function
+        minter.mint(address(product), buyer, garmentType, 1, "Test comment");
+        vm.stopPrank();
+
+        // Additional assertions can be made here to verify state changes as a result of the redemption
+        vm.assertEq(
+            usdc.balanceOf(address(product)),
+            garmentsAvailable * product.buyNFTPrice(),
+            "FundsRecipient should have received the correct amount of USDC"
         );
     }
 
@@ -466,14 +503,15 @@ contract CrowdmuseEscrowMinterTest is
         _verifyNoSalesConfig();
     }
 
-    function test_RefundCallableByTokenOwnerAfterMinimumDays(
+    function test_Refund_CallableByTokenOwnerAfterMinimumDays(
         address _buyer,
         address _notBuyer
     ) external {
         vm.assume(
             _buyer != address(0) &&
                 _notBuyer != address(0) &&
-                _buyer != _notBuyer
+                _buyer != _notBuyer &&
+                _notBuyer != admin
         );
 
         // Initial setup: Mint a token to _buyer, set up the sale and wait for the sale duration to pass

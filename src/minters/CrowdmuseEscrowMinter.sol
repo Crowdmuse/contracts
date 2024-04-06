@@ -93,6 +93,13 @@ contract CrowdmuseEscrowMinter is
         }
 
         _transferToEscrow(target, totalPrice);
+
+        // Check if total supply equals garments available after minting
+        if (ICrowdmuseProduct(target).garmentsAvailable() == 0) {
+            _redeem(target); // Call redeem if condition is met
+        }
+
+        return tokenId;
     }
 
     /// @notice Sets the sale config for a given token
@@ -150,7 +157,15 @@ contract CrowdmuseEscrowMinter is
     /// Can only be called by the owner of the target product contract.
     /// Deletes the sales configuration for the target product after redeeming the funds.
     /// @param target Address of the target product contract whose escrowed funds are to be redeemed.
-    function redeem(address target) external onlyOwner(target) nonReentrant {
+    function redeem(address target) external onlyOwner(target) {
+        _redeem(target);
+    }
+
+    /// @notice Redeems escrowed funds for a given product, transferring them to the product's funds recipient.
+    /// Can only be called by the owner of the target product contract.
+    /// Deletes the sales configuration for the target product after redeeming the funds.
+    /// @param target Address of the target product contract whose escrowed funds are to be redeemed.
+    function _redeem(address target) internal nonReentrant {
         SalesConfig storage config = salesConfigs[target];
 
         uint256 amount = balanceOf[target];
@@ -299,6 +314,16 @@ contract CrowdmuseEscrowMinter is
 
         // Emit escrow event
         emit EscrowDeposit(target, msg.sender, amount);
+    }
+
+    /// @dev Checks if the redeem conditions are met.
+    /// @param target The target CrowdmuseProduct contract address to check
+    /// @return bool Returns true if conditions for auto redeem are met.
+    function _shouldAutoRedeem(address target) internal view returns (bool) {
+        uint256 totalSupply = IERC721A(target).totalSupply();
+        uint256 garmentsAvailable = ICrowdmuseProduct(target)
+            .garmentsAvailable();
+        return totalSupply == garmentsAvailable;
     }
 
     function isOwner(address target) internal view returns (bool) {
