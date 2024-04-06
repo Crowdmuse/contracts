@@ -137,9 +137,6 @@ contract CrowdmuseEscrowMinterTest is
     function test_SetSale_ConfigMatchesOriginalProduct() external {
         _setupEscrowMinter();
 
-        // Set the sale with the original configuration
-        _setSale();
-
         // Original sales configuration for comparison
         SalesConfig memory expectedConfig = _getExpectedSaleConfig();
 
@@ -177,6 +174,22 @@ contract CrowdmuseEscrowMinterTest is
             expectedConfig.erc20Address,
             "ERC20 address mismatch."
         );
+    }
+
+    function test_SetSale_ThrowsErrorIfSaleAlreadyExists() external {
+        // Set up the escrow minter with initial sale configuration
+        _setupEscrowMinter();
+
+        // Attempting to set another sale for the same product should fail
+        // Expect the EscrowAlreadyExists error to be thrown
+        bytes memory expectedError = abi.encodeWithSelector(
+            EscrowAlreadyExists.selector
+        );
+        vm.expectRevert(expectedError);
+
+        // Attempt to set the sale again for the same product
+        vm.prank(admin);
+        minter.setSale(address(product));
     }
 
     function test_MintFlow() external {

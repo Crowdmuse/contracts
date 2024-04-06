@@ -10,6 +10,9 @@ interface ICrowdmuseEscrowMinter {
     /// @dev Error thrown when an operation that requires a non-zero price for escrow is attempted with a zero price.
     error EscrowPriceZero();
 
+    /// @dev Error thrown when an operation that requires the escrow to not exist is attempted, but the escrow already exists.
+    error EscrowAlreadyExists();
+
     /// @notice Escrow Deposit Event
     /// @param target collection for escrow
     /// @param from The caller of the deposit

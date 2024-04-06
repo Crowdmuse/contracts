@@ -98,6 +98,9 @@ contract CrowdmuseEscrowMinter is
     /// @notice Sets the sale config for a given token
     /// @param target The target contract for which the sale config is being set
     function setSale(address target) external onlyOwner(target) {
+        if (salesConfigs[target].pricePerToken != 0) {
+            revert EscrowAlreadyExists();
+        }
         ICrowdmuseProduct product = ICrowdmuseProduct(target);
         SalesConfig memory salesConfig = SalesConfig({
             saleStart: 0,
