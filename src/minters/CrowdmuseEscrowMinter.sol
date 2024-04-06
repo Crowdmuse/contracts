@@ -180,15 +180,14 @@ contract CrowdmuseEscrowMinter is
         IERC721A productContract = IERC721A(target);
         uint256 totalSupply = productContract.totalSupply();
 
-        // only owner can revert before saleEnd
-        bool _isOwner = isOwner(target);
-        if (block.timestamp < config.saleEnd && !_isOwner) {
-            revert EscrowNotEnded();
-        }
-
-        // only owner & tokenOwners can revert after saleEnd
-        if (!_isOwner && IERC721A(target).balanceOf(msg.sender) == 0) {
-            revert EscrowNotTokenOwner();
+        if (!isOwner(target)) {
+            // only owner can revert before saleEnd
+            if (block.timestamp < config.saleEnd) {
+                revert EscrowNotEnded();
+                // tokenOwners can revert after saleEnd
+            } else if (IERC721A(target).balanceOf(msg.sender) == 0) {
+                revert EscrowNotTokenOwner();
+            }
         }
 
         // verify escrow has price
