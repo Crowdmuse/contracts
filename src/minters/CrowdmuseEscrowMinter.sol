@@ -113,8 +113,7 @@ contract CrowdmuseEscrowMinter is
 
         ICrowdmuseProduct product = ICrowdmuseProduct(target);
         SalesConfig memory salesConfig = SalesConfig({
-            // set saleStart to now
-            saleStart: 0,
+            saleStart: uint64(block.timestamp),
             saleEnd: saleEnd,
             maxTokensPerAddress: uint64(product.getMaxAmountOfTokensPerMint()),
             pricePerToken: uint96(product.buyNFTPrice()),

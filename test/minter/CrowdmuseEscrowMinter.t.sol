@@ -646,7 +646,7 @@ contract CrowdmuseEscrowMinterTest is
         returns (SalesConfig memory salesConfig)
     {
         salesConfig = SalesConfig({
-            saleStart: 0,
+            saleStart: uint64(block.timestamp),
             saleEnd: uint64(block.timestamp + 90 days),
             maxTokensPerAddress: uint64(product.getMaxAmountOfTokensPerMint()),
             pricePerToken: uint96(product.buyNFTPrice()),
