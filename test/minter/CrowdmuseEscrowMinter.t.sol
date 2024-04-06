@@ -284,7 +284,6 @@ contract CrowdmuseEscrowMinterTest is
     }
 
     function test_MintFlow_AutoRedeemOnFinalMint(address buyer) external {
-        // Setup and mint tokens to reach the garmentAvailable limit
         _setupEscrowMinter();
         uint256 garmentsAvailable = ICrowdmuseProduct(address(product))
             .garmentsAvailable();
@@ -297,7 +296,6 @@ contract CrowdmuseEscrowMinterTest is
         usdc.mint(buyer, product.buyNFTPrice());
         usdc.approve(address(minter), product.buyNFTPrice());
         // Expect the automatic redemption to occur during the final mint
-        // This requires that you've implemented or will implement an event emission on redeem to verify its execution
         vm.expectEmit(true, true, true, true);
         emit EscrowRedeemed(
             address(product),
@@ -306,11 +304,9 @@ contract CrowdmuseEscrowMinterTest is
             garmentsAvailable * product.buyNFTPrice()
         );
         // Perform the final mint that should trigger the auto redeem
-        // Call the mint function
         minter.mint(address(product), buyer, garmentType, 1, "Test comment");
         vm.stopPrank();
 
-        // Additional assertions can be made here to verify state changes as a result of the redemption
         vm.assertEq(
             usdc.balanceOf(address(product)),
             garmentsAvailable * product.buyNFTPrice(),
