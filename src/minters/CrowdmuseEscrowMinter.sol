@@ -56,7 +56,7 @@ contract CrowdmuseEscrowMinter is
         bytes32 garmentType,
         uint256 quantity,
         string memory comment
-    ) external returns (uint256 tokenId) {
+    ) external nonReentrant returns (uint256 tokenId) {
         tokenId = _mint(target, mintTo, garmentType, quantity, comment);
     }
 
@@ -141,7 +141,7 @@ contract CrowdmuseEscrowMinter is
     /// Can only be called by the owner of the target product contract.
     /// Deletes the sales configuration for the target product after redeeming the funds.
     /// @param target Address of the target product contract whose escrowed funds are to be redeemed.
-    function redeem(address target) external onlyOwner(target) {
+    function redeem(address target) external onlyOwner(target) nonReentrant {
         _redeem(target);
     }
 
@@ -149,7 +149,7 @@ contract CrowdmuseEscrowMinter is
     /// Can only be called by the owner of the target product contract.
     /// Deletes the sales configuration for the target product after redeeming the funds.
     /// @param target Address of the target product contract whose escrowed funds are to be redeemed.
-    function _redeem(address target) internal nonReentrant {
+    function _redeem(address target) internal {
         SalesConfig storage config = salesConfigs[target];
 
         uint256 amount = balanceOf[target];
