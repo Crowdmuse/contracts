@@ -247,7 +247,7 @@ contract CrowdmuseEscrowMinter is
 
         // If sales config does not exist this first check will always fail.
         // Check sale end
-        if (0 == config.pricePerToken) {
+        if (config.pricePerToken == 0) {
             revert SaleEnded();
         }
 
