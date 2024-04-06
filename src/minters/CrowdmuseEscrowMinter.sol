@@ -102,8 +102,10 @@ contract CrowdmuseEscrowMinter is
         return tokenId;
     }
 
-    /// @notice Sets the sale config for a given token
-    /// @param target The target contract for which the sale config is being set
+    /// @notice Configures the sale for a specific product by setting various parameters including the sale duration based on a predefined enum.
+    /// @dev This function sets the sale configuration for the target contract and emits a SaleSet event upon successful execution.
+    /// @param target The address of the target contract for which the sale configuration is being set.
+    /// @param duration The minimum escrow duration selected from the MinimumEscrowDuration enum.
     function setSale(
         address target,
         MinimumEscrowDuration duration
@@ -173,6 +175,7 @@ contract CrowdmuseEscrowMinter is
     /// Iterates over each tokenId from 1 to product.totalSupply(), paying each product.ownerOf(tokenId).
     /// The amount paid is determined by config.pricePerToken.
     /// Can only be called by the owner of the target product contract.
+    /// Can be called by any token owner of the target product contract after saleEnd.
     /// Resets the product's escrow balance after the refund process.
     /// @param target The address of the target product contract whose escrowed funds are to be refunded.
     function refund(address target) external nonReentrant {
@@ -309,10 +312,16 @@ contract CrowdmuseEscrowMinter is
         return totalSupply == garmentsAvailable;
     }
 
+    /// @dev Checks if the caller is the owner of the target contract.
+    /// @param target The target contract address whose ownership is to be verified.
+    /// @return bool Returns true if the caller is the owner of the target contract.
     function isOwner(address target) internal view returns (bool) {
         return Ownable(target).owner() == msg.sender;
     }
 
+    /// @dev Converts a MinimumEscrowDuration enum value to its corresponding number of days.
+    /// @param duration The duration value of the enum MinimumEscrowDuration.
+    /// @return durationDays The number of days corresponding to the enum value.
     function getDaysForEnum(
         MinimumEscrowDuration duration
     ) internal pure returns (uint64 durationDays) {
@@ -338,6 +347,8 @@ contract CrowdmuseEscrowMinter is
         _;
     }
 
+    /// @dev Ensures a sale configuration is not already active for the given target.
+    /// @param target The target contract address for which the sale config is being verified.
     modifier onlyIfInactive(address target) {
         if (salesConfigs[target].pricePerToken != 0) {
             revert EscrowAlreadyExists();
