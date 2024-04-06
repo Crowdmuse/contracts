@@ -94,9 +94,9 @@ contract CrowdmuseEscrowMinter is
 
         _transferToEscrow(target, totalPrice);
 
-        // Check if total supply equals garments available after minting
+        // Redeem if sold out
         if (ICrowdmuseProduct(target).garmentsAvailable() == 0) {
-            _redeem(target); // Call redeem if condition is met
+            _redeem(target);
         }
 
         return tokenId;
