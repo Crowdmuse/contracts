@@ -53,10 +53,11 @@ interface ICrowdmuseEscrowMinter {
         uint256 totalRefunded
     );
 
+    /// @notice Enumerates the minimum durations (in days) that can be set for an escrow period.
     enum MinimumEscrowDuration {
-        Days15,
-        Days30,
-        Days60,
-        Days90
+        Days15, // Represents a minimum duration of 15 days.
+        Days30, // Represents a minimum duration of 30 days.
+        Days60, // Represents a minimum duration of 60 days.
+        Days90 // Represents a minimum duration of 90 days.
     }
 }
