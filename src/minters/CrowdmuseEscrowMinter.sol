@@ -187,7 +187,7 @@ contract CrowdmuseEscrowMinter is
         }
 
         // only owner & tokenOwners can revert after saleEnd
-        if (!_isOwner && IERC721A(target).ownerOf(1) != msg.sender) {
+        if (!_isOwner && IERC721A(target).balanceOf(msg.sender) == 0) {
             revert EscrowNotTokenOwner();
         }
 
