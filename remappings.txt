@@ -1,1 +1,3 @@
 erc721a/contracts=lib/erc721a/contracts
+splits-v2/=lib/splits-contracts-monorepo/packages/splits-v2/src
+@openzeppelin/contracts/=lib/openzeppelin/contracts/

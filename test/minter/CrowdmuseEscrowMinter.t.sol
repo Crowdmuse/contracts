@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.10;
 
-import "forge-std/Test.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {IERC721A} from "erc721a/contracts/IERC721A.sol";
+import {SplitsV2Test} from "../utils/SplitsV2.t.sol";
 import {CrowdmuseProduct} from "../../src/CrowdmuseProduct.sol";
 import {ICrowdmuseProduct} from "../../src/interfaces/ICrowdmuseProduct.sol";
 import {ICrowdmuseEscrowMinter} from "../../src/interfaces/ICrowdmuseEscrowMinter.sol";
@@ -13,7 +13,7 @@ import {CrowdmuseEscrowMinter} from "../../src/minters/CrowdmuseEscrowMinter.sol
 import {MockERC20} from "../mocks/MockERC20.sol";
 
 contract CrowdmuseEscrowMinterTest is
-    Test,
+    SplitsV2Test,
     ICrowdmuseEscrowMinter,
     IMinterStorage,
     IMinterErrors
@@ -29,7 +29,6 @@ contract CrowdmuseEscrowMinterTest is
     function setUp() external {
         tokenRecipient = makeAddr("tokenRecipient");
         fundsRecipient = makeAddr("fundsRecipient");
-
         minter = new CrowdmuseEscrowMinter();
         vm.startPrank(admin);
         usdc = new MockERC20("MockUSD", "MUSD");
@@ -76,6 +75,10 @@ contract CrowdmuseEscrowMinterTest is
             1 ether // _buyNFTPrice
         );
         vm.stopPrank();
+    }
+
+    function test_SplitsWarehouseSetup2() external view {
+        assertEq(splitsWarehouse.PERCENTAGE_SCALE(), 1000000);
     }
 
     function test_ContractName() external view {
