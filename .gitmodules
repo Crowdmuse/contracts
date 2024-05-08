@@ -7,3 +7,6 @@
 [submodule "lib/openzeppelin"]
 	path = lib/openzeppelin
 	url = https://github.com/OpenZeppelin/openzeppelin-contracts
+[submodule "lib/splits-contracts-monorepo"]
+	path = lib/splits-contracts-monorepo
+	url = https://github.com/0xSplits/splits-contracts-monorepo
