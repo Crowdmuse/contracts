@@ -77,10 +77,6 @@ contract CrowdmuseEscrowMinterTest is
         vm.stopPrank();
     }
 
-    function test_SplitsWarehouseSetup2() external view {
-        assertEq(splitsWarehouse.PERCENTAGE_SCALE(), 1000000);
-    }
-
     function test_ContractName() external view {
         assertEq(minter.contractName(), "Crowdmuse Escrow Minter");
     }
