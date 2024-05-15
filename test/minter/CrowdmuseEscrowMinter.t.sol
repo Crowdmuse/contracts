@@ -414,6 +414,23 @@ contract CrowdmuseEscrowMinterTest is
         );
     }
 
+    function test_Refund_SplitCreated(address recipient) external {
+        _setupEscrowMinter();
+        _mintTo(recipient, 10);
+
+        // Assume funds have been escrowed for 'product'
+        uint256 initialEscrowBalance = minter.balanceOf(address(product));
+        require(initialEscrowBalance > 0, "No funds in escrow to refund");
+
+        // Execute refund by the product owner
+        address split = _refundAsAdmin();
+
+        // Assertions after refund
+        uint256 finalEscrowBalance = minter.balanceOf(address(product));
+        uint256 finalDepositorBalance = usdc.balanceOf(recipient);
+        assertEq(split, address(0), "Split should be returned from refund");
+    }
+
     function test_Refund_EscrowRefundedEventEmitted(
         address recipient
     ) external {
@@ -598,9 +615,9 @@ contract CrowdmuseEscrowMinterTest is
         minter.redeem(address(product));
     }
 
-    function _refundAsAdmin() internal {
+    function _refundAsAdmin() internal returns (address split) {
         vm.prank(admin);
-        minter.refund(address(product));
+        split = minter.refund(address(product));
     }
 
     function _isContract(
