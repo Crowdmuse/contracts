@@ -29,7 +29,7 @@ contract CrowdmuseEscrowMinterTest is
     function setUp() external {
         tokenRecipient = makeAddr("tokenRecipient");
         fundsRecipient = makeAddr("fundsRecipient");
-        minter = new CrowdmuseEscrowMinter();
+        minter = new CrowdmuseEscrowMinter(address(pushSplitFactory));
         vm.startPrank(admin);
         usdc = new MockERC20("MockUSD", "MUSD");
         ICrowdmuseProduct.Token memory tokenInfo = ICrowdmuseProduct.Token({
@@ -83,6 +83,10 @@ contract CrowdmuseEscrowMinterTest is
 
     function test_Version() external view {
         assertEq(minter.contractVersion(), "0.0.1");
+    }
+
+    function test_PushSplitFactory() external view {
+        assertEq(address(minter.pushSplitFactory()), address(pushSplitFactory));
     }
 
     function test_SetSale_OnlyOwner() external {

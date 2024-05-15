@@ -5,6 +5,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {IERC721A} from "erc721a/contracts/IERC721A.sol";
+import {PushSplitFactory} from "splits-v2/splitters/push/PushSplitFactory.sol";
 import {LimitedMintPerAddress} from "../utils/LimitedMintPerAddress.sol";
 import {IMinterErrors} from "../interfaces/IMinterErrors.sol";
 import {ICrowdmuseProduct} from "../interfaces/ICrowdmuseProduct.sol";
@@ -24,6 +25,12 @@ contract CrowdmuseEscrowMinter is
     mapping(address => SalesConfig) internal salesConfigs;
     /// @notice A product's escrow balance
     mapping(address => uint256) public balanceOf;
+    /// @notice The PushSplitFactory contract
+    PushSplitFactory public pushSplitFactory;
+
+    constructor(address _pushSplitFactory) {
+        pushSplitFactory = PushSplitFactory(_pushSplitFactory);
+    }
 
     /// @notice Retrieves the contract metadata URI
     /// @return A string representing the metadata URI for this contract
