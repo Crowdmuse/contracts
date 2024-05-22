@@ -227,24 +227,9 @@ contract CrowdmuseEscrowMinter is
     /// @param target The address of the product contract.
     function _refund(address target) internal returns (address split) {
         SalesConfig storage config = salesConfigs[target];
-        IERC721A productContract = IERC721A(target);
-        uint256 totalSupply = productContract.totalSupply();
-
-        // for (uint256 tokenId = 1; tokenId <= totalSupply; tokenId++) {
-        //     address owner = productContract.ownerOf(tokenId);
-
-        //     // transfer ERC20 to owner
-        //     IERC20(config.erc20Address).transfer(owner, config.pricePerToken);
-        //     // Decrement the escrow balance for each payment made
-        //     balanceOf[target] = balanceOf[target] > config.pricePerToken
-        //         ? balanceOf[target] - config.pricePerToken
-        //         : 0;
-        // }
-
         split = createSplit();
         IERC20(config.erc20Address).transfer(split, balanceOf[target]);
         balanceOf[target] = 0;
-        distributeSplit(split, target);
     }
 
     /// @dev Validates the sale conditions before minting. Reverts if conditions are not met.

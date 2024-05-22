@@ -394,7 +394,7 @@ contract CrowdmuseEscrowMinterTest is
         );
     }
 
-    function test_Refund_EscrowFundsReturned() external {
+    function test_Refund_EscrowFundsSentToSplit() external {
         _setupEscrowMinter();
         _mintTo(tokenRecipient, 10);
 
@@ -403,19 +403,21 @@ contract CrowdmuseEscrowMinterTest is
         require(initialEscrowBalance > 0, "No funds in escrow to refund");
 
         // Execute refund by the product owner
-        _refundAsAdmin();
+        address split = _refundAsAdmin();
 
         // Assertions after refund
         uint256 finalEscrowBalance = minter.balanceOf(address(product));
-        uint256 finalDepositorBalance = usdc.balanceOf(tokenRecipient);
         assertEq(
             finalEscrowBalance,
             0,
             "Escrow balance should be zero after refund"
         );
-        assertTrue(
-            finalDepositorBalance == initialEscrowBalance,
-            "Depositor should have received a refund"
+        // Assertions after refund
+        uint256 splitBalance = usdc.balanceOf(split);
+        assertEq(
+            splitBalance,
+            initialEscrowBalance,
+            "Split should be receive payout from refund"
         );
     }
 
@@ -435,8 +437,8 @@ contract CrowdmuseEscrowMinterTest is
         assertTrue(_isContract(split), "Split should be returned from refund");
         assertEq(
             splitBalance,
-            0,
-            "Split should be pass full refund to recipients"
+            initialEscrowBalance,
+            "Split should be receive payout from refund"
         );
     }
 
@@ -459,7 +461,7 @@ contract CrowdmuseEscrowMinterTest is
         _refundAsAdmin();
     }
 
-    function test_Refund_EscrowFundsReturned_ArbitraryDepositors() external {
+    function test_Refund_EscrowFundsSentToSplit_ArbitraryDepositors() external {
         uint256 numberOfDepositors = _randomNumber(1, 1000);
         address[] memory depositors = new address[](numberOfDepositors);
         uint256[] memory initialBalances = new uint256[](numberOfDepositors);
@@ -487,24 +489,16 @@ contract CrowdmuseEscrowMinterTest is
         require(initialEscrowBalance > 0, "No funds in escrow to refund");
 
         // Execute refund by the product owner
-        _refundAsAdmin();
+        address split = _refundAsAdmin();
 
         // Assertions after refund
-        uint256 finalEscrowBalance = minter.balanceOf(address(product));
+        uint256 splitBalance = usdc.balanceOf(split);
+        assertTrue(_isContract(split), "Split should be returned from refund");
         assertEq(
-            finalEscrowBalance,
-            0,
-            "Escrow balance should be zero after refund"
+            splitBalance,
+            initialEscrowBalance,
+            "Split should be receive payout from refund"
         );
-
-        for (uint256 i = 0; i < numberOfDepositors; i++) {
-            uint256 finalBalance = usdc.balanceOf(depositors[i]);
-            assertEq(
-                finalBalance,
-                expectedRefund[i],
-                "Depositor did not receive a refund"
-            );
-        }
     }
 
     function test_Refund_ConfigDeletedAfterRefund() external {
