@@ -19,6 +19,9 @@ interface ICrowdmuseEscrowMinter {
     /// @dev Error thrown when an operation that requires the caller be an escrow tokens owner is attempted, but the msg.sender is not a token owner.
     error EscrowNotTokenOwner();
 
+    /// @dev Error thrown when an operation that requires a valid refund list is attempted, but the list is not exactly correct.
+    error EscrowNotValidRefundList();
+
     /// @notice Escrow Deposit Event
     /// @param target collection for escrow
     /// @param from The caller of the deposit

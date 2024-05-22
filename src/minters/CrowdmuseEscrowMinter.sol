@@ -26,6 +26,8 @@ contract CrowdmuseEscrowMinter is
     mapping(address => SalesConfig) internal salesConfigs;
     /// @notice A product's escrow balance
     mapping(address => uint256) public balanceOf;
+    /// @notice A contributor's escrow balance for a given target
+    mapping(address => mapping(address => uint256)) private contributions;
 
     constructor(address _pushSplitFactory) SplitsV2(_pushSplitFactory) {}
 
@@ -96,7 +98,7 @@ contract CrowdmuseEscrowMinter is
             emit MintComment(mintTo, target, tokenId, quantity, comment);
         }
 
-        _transferToEscrow(target, totalPrice);
+        _transferToEscrow(target, mintTo, totalPrice);
 
         // Redeem if sold out
         if (ICrowdmuseProduct(target).garmentsAvailable() == 0) {
@@ -231,7 +233,11 @@ contract CrowdmuseEscrowMinter is
     function _refund(
         address target,
         address[] memory refundRecipients
-    ) internal returns (address split) {
+    )
+        internal
+        onlyValidRecipientList(target, refundRecipients)
+        returns (address split)
+    {
         SalesConfig storage config = salesConfigs[target];
         split = createSplit();
         IERC20(config.erc20Address).transfer(split, balanceOf[target]);
@@ -280,10 +286,15 @@ contract CrowdmuseEscrowMinter is
         }
     }
 
-    /// @dev Transfers the specified amount to escrow and updates the escrow balance for the target product.
-    /// @param target The product contract address.
-    /// @param amount The amount to transfer to escrow.
-    function _transferToEscrow(address target, uint256 amount) internal {
+    /// @dev Transfers the specified amount to escrow and updates the escrow balance for the target product
+    /// @param target The product contract address
+    /// @param mintTo The address that will receive the minted tokens
+    /// @param amount The amount to transfer to escrow
+    function _transferToEscrow(
+        address target,
+        address mintTo,
+        uint256 amount
+    ) internal {
         SalesConfig storage config = salesConfigs[target];
 
         // Transfer USDC to escrow
@@ -297,11 +308,12 @@ contract CrowdmuseEscrowMinter is
         unchecked {
             if (target != address(0)) {
                 balanceOf[target] += amount;
+                contributions[target][mintTo] += amount;
             }
         }
 
         // Emit escrow event
-        emit EscrowDeposit(target, msg.sender, amount);
+        emit EscrowDeposit(target, mintTo, amount);
     }
 
     /// @dev Checks if the redeem conditions are met.
@@ -356,6 +368,21 @@ contract CrowdmuseEscrowMinter is
             revert EscrowAlreadyExists();
         }
 
+        _;
+    }
+
+    /// @dev Ensures a refund list is valid for the given target.
+    /// @param target The target contract address for which the refund list is being verified.
+    /// @param refundRecipients List of refund recipients.
+    modifier onlyValidRecipientList(
+        address target,
+        address[] memory refundRecipients
+    ) {
+        for (uint256 i = 0; i < refundRecipients.length; i++) {
+            if (contributions[target][refundRecipients[i]] == 0) {
+                revert EscrowNotValidRefundList();
+            }
+        }
         _;
     }
 }

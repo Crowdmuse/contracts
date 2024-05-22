@@ -404,6 +404,7 @@ contract CrowdmuseEscrowMinterTest is
 
         // Execute refund by the product owner
         address[] memory refundRecipients = new address[](1);
+        refundRecipients[0] = tokenRecipient;
         address split = _refundAsAdmin(refundRecipients);
 
         // Assertions after refund
@@ -432,6 +433,7 @@ contract CrowdmuseEscrowMinterTest is
 
         // Execute refund by the product owner
         address[] memory refundRecipients = new address[](1);
+        refundRecipients[0] = tokenRecipient;
         address split = _refundAsAdmin(refundRecipients);
 
         // Assertions after refund
@@ -461,6 +463,7 @@ contract CrowdmuseEscrowMinterTest is
 
         // Execute refund by the product owner
         address[] memory refundRecipients = new address[](1);
+        refundRecipients[0] = tokenRecipient;
         _refundAsAdmin(refundRecipients);
     }
 
@@ -492,8 +495,7 @@ contract CrowdmuseEscrowMinterTest is
         require(initialEscrowBalance > 0, "No funds in escrow to refund");
 
         // Execute refund by the product owner
-        address[] memory refundRecipients = new address[](1);
-        address split = _refundAsAdmin(refundRecipients);
+        address split = _refundAsAdmin(depositors);
 
         // Assertions after refund
         uint256 splitBalance = usdc.balanceOf(split);
@@ -511,6 +513,7 @@ contract CrowdmuseEscrowMinterTest is
 
         // Refund as the owner should succeed
         address[] memory refundRecipients = new address[](1);
+        refundRecipients[0] = tokenRecipient;
         _refundAsAdmin(refundRecipients);
 
         // Verify that the sales configuration has been deleted
@@ -531,6 +534,7 @@ contract CrowdmuseEscrowMinterTest is
             EscrowNotTokenOwner.selector
         );
         address[] memory refundRecipients = new address[](1);
+        refundRecipients[0] = tokenRecipient;
         vm.expectRevert(expectedError);
         minter.refund(address(product), refundRecipients);
 
