@@ -182,8 +182,10 @@ contract CrowdmuseEscrowMinter is
     /// Can be called by any token owner of the target product contract after saleEnd.
     /// Resets the product's escrow balance after the refund process.
     /// @param target The address of the target product contract whose escrowed funds are to be refunded.
+    /// @param refundRecipients List of refund recipients.
     function refund(
-        address target
+        address target,
+        address[] memory refundRecipients
     ) external nonReentrant returns (address split) {
         SalesConfig storage config = salesConfigs[target];
         IERC721A productContract = IERC721A(target);
@@ -205,7 +207,7 @@ contract CrowdmuseEscrowMinter is
         }
 
         // refund all product owners
-        split = _refund(target);
+        split = _refund(target, refundRecipients);
 
         // After refunding all owners, ensure any remaining balance due to rounding or errors is cleared.
         if (balanceOf[target] > 0) {
@@ -225,7 +227,11 @@ contract CrowdmuseEscrowMinter is
 
     /// @notice Refunds the escrowed funds to the original token owners for a specified product.
     /// @param target The address of the product contract.
-    function _refund(address target) internal returns (address split) {
+    /// @param refundRecipients List of refund recipients.
+    function _refund(
+        address target,
+        address[] memory refundRecipients
+    ) internal returns (address split) {
         SalesConfig storage config = salesConfigs[target];
         split = createSplit();
         IERC20(config.erc20Address).transfer(split, balanceOf[target]);

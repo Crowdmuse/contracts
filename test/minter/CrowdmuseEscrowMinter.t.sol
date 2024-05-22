@@ -403,7 +403,8 @@ contract CrowdmuseEscrowMinterTest is
         require(initialEscrowBalance > 0, "No funds in escrow to refund");
 
         // Execute refund by the product owner
-        address split = _refundAsAdmin();
+        address[] memory refundRecipients = new address[](1);
+        address split = _refundAsAdmin(refundRecipients);
 
         // Assertions after refund
         uint256 finalEscrowBalance = minter.balanceOf(address(product));
@@ -430,7 +431,8 @@ contract CrowdmuseEscrowMinterTest is
         require(initialEscrowBalance > 0, "No funds in escrow to refund");
 
         // Execute refund by the product owner
-        address split = _refundAsAdmin();
+        address[] memory refundRecipients = new address[](1);
+        address split = _refundAsAdmin(refundRecipients);
 
         // Assertions after refund
         uint256 splitBalance = usdc.balanceOf(split);
@@ -458,7 +460,8 @@ contract CrowdmuseEscrowMinterTest is
         );
 
         // Execute refund by the product owner
-        _refundAsAdmin();
+        address[] memory refundRecipients = new address[](1);
+        _refundAsAdmin(refundRecipients);
     }
 
     function test_Refund_EscrowFundsSentToSplit_ArbitraryDepositors() external {
@@ -489,7 +492,8 @@ contract CrowdmuseEscrowMinterTest is
         require(initialEscrowBalance > 0, "No funds in escrow to refund");
 
         // Execute refund by the product owner
-        address split = _refundAsAdmin();
+        address[] memory refundRecipients = new address[](1);
+        address split = _refundAsAdmin(refundRecipients);
 
         // Assertions after refund
         uint256 splitBalance = usdc.balanceOf(split);
@@ -506,7 +510,8 @@ contract CrowdmuseEscrowMinterTest is
         _mintToTokenRecipient(10);
 
         // Refund as the owner should succeed
-        _refundAsAdmin();
+        address[] memory refundRecipients = new address[](1);
+        _refundAsAdmin(refundRecipients);
 
         // Verify that the sales configuration has been deleted
         _verifyNoSalesConfig();
@@ -525,12 +530,13 @@ contract CrowdmuseEscrowMinterTest is
         bytes memory expectedError = abi.encodeWithSelector(
             EscrowNotTokenOwner.selector
         );
+        address[] memory refundRecipients = new address[](1);
         vm.expectRevert(expectedError);
-        minter.refund(address(product));
+        minter.refund(address(product), refundRecipients);
 
         // Successfully refund as the token owner
         vm.prank(tokenRecipient);
-        minter.refund(address(product));
+        minter.refund(address(product), refundRecipients);
     }
 
     // TEST UTILS
@@ -602,9 +608,11 @@ contract CrowdmuseEscrowMinterTest is
         minter.redeem(address(product));
     }
 
-    function _refundAsAdmin() internal returns (address split) {
+    function _refundAsAdmin(
+        address[] memory refundRecipients
+    ) internal returns (address split) {
         vm.prank(admin);
-        split = minter.refund(address(product));
+        split = minter.refund(address(product), refundRecipients);
     }
 
     function _isContract(
