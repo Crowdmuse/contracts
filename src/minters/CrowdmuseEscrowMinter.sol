@@ -239,7 +239,11 @@ contract CrowdmuseEscrowMinter is
         returns (address split)
     {
         SalesConfig storage config = salesConfigs[target];
-        split = createSplit();
+        SplitReceiver[] memory splitRecipients = getRefundSplit(
+            target,
+            refundRecipients
+        );
+        split = createSplit(splitRecipients);
         IERC20(config.erc20Address).transfer(split, balanceOf[target]);
         balanceOf[target] = 0;
     }
@@ -347,6 +351,24 @@ contract CrowdmuseEscrowMinter is
             durationDays = 60;
         } else if (duration == MinimumEscrowDuration.Days90) {
             durationDays = 90;
+        }
+    }
+
+    function getRefundSplit(
+        address target,
+        address[] memory refundRecipients
+    ) internal view returns (SplitReceiver[] memory splitReceivers) {
+        uint256 totalRecipients = refundRecipients.length;
+        splitReceivers = new SplitReceiver[](totalRecipients);
+
+        for (uint256 i = 0; i < totalRecipients; i++) {
+            address recipient = refundRecipients[i];
+            uint256 contribution = contributions[target][recipient];
+
+            splitReceivers[i] = SplitReceiver({
+                receiver: recipient,
+                allocation: uint32(contribution)
+            });
         }
     }
 
