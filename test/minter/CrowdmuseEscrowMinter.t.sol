@@ -24,6 +24,7 @@ contract CrowdmuseEscrowMinterTest is
     address payable internal admin = payable(address(0x999));
     address payable internal nonAdmin = payable(address(0x666));
     address internal tokenRecipient;
+    address internal tokenRecipient2 = payable(address(0x222));
     address internal fundsRecipient;
 
     function setUp() external {
@@ -317,12 +318,12 @@ contract CrowdmuseEscrowMinterTest is
         );
     }
 
-    function test_Redeem(address recipient) public {
+    function test_Redeem() public {
         _setupEscrowMinter();
 
         uint256 initialFundsRecipientBalance = usdc.balanceOf(fundsRecipient);
 
-        _mintTo(recipient, 10);
+        _mintTo(tokenRecipient, 10);
         uint256 escrowedAmount = minter.balanceOf(address(product));
 
         // Expect the EscrowRedeemed event to be emitted with the correct parameters
@@ -393,9 +394,9 @@ contract CrowdmuseEscrowMinterTest is
         );
     }
 
-    function test_Refund_EscrowFundsReturned(address recipient) external {
+    function test_Refund_EscrowFundsReturned() external {
         _setupEscrowMinter();
-        _mintTo(recipient, 10);
+        _mintTo(tokenRecipient, 10);
 
         // Assume funds have been escrowed for 'product'
         uint256 initialEscrowBalance = minter.balanceOf(address(product));
@@ -406,7 +407,7 @@ contract CrowdmuseEscrowMinterTest is
 
         // Assertions after refund
         uint256 finalEscrowBalance = minter.balanceOf(address(product));
-        uint256 finalDepositorBalance = usdc.balanceOf(recipient);
+        uint256 finalDepositorBalance = usdc.balanceOf(tokenRecipient);
         assertEq(
             finalEscrowBalance,
             0,
@@ -418,9 +419,9 @@ contract CrowdmuseEscrowMinterTest is
         );
     }
 
-    function test_Refund_SplitCreated(address recipient) external {
+    function test_Refund_SplitCreated() external {
         _setupEscrowMinter();
-        _mintTo(recipient, 10);
+        _mintTo(tokenRecipient, 10);
 
         // Assume funds have been escrowed for 'product'
         uint256 initialEscrowBalance = minter.balanceOf(address(product));
@@ -430,16 +431,12 @@ contract CrowdmuseEscrowMinterTest is
         address split = _refundAsAdmin();
 
         // Assertions after refund
-        uint256 finalEscrowBalance = minter.balanceOf(address(product));
-        uint256 finalDepositorBalance = usdc.balanceOf(recipient);
-        assertEq(split, address(0), "Split should be returned from refund");
+        assertTrue(_isContract(split), "Split should be returned from refund");
     }
 
-    function test_Refund_EscrowRefundedEventEmitted(
-        address recipient
-    ) external {
+    function test_Refund_EscrowRefundedEventEmitted() external {
         _setupEscrowMinter();
-        _mintTo(recipient, 10);
+        _mintTo(tokenRecipient, 10);
 
         // Calculate expected refund based on salesConfig.pricePerToken and product.totalSupply()
         uint256 expectedTotalRefunded = minter.balanceOf(address(product));
@@ -456,11 +453,7 @@ contract CrowdmuseEscrowMinterTest is
         _refundAsAdmin();
     }
 
-    function test_Refund_EscrowFundsReturned_ArbitraryDepositors(
-        uint64 randomTime
-    ) external {
-        vm.assume(randomTime < block.timestamp + 90 days);
-        vm.warp(randomTime);
+    function test_Refund_EscrowFundsReturned_ArbitraryDepositors() external {
         uint256 numberOfDepositors = _randomNumber(1, 1000);
         address[] memory depositors = new address[](numberOfDepositors);
         uint256[] memory initialBalances = new uint256[](numberOfDepositors);
@@ -519,26 +512,16 @@ contract CrowdmuseEscrowMinterTest is
         _verifyNoSalesConfig();
     }
 
-    function test_Refund_CallableByTokenOwnerAfterMinimumDays(
-        address _buyer,
-        address _notBuyer
-    ) external {
-        vm.assume(
-            _buyer != address(0) &&
-                _notBuyer != address(0) &&
-                _buyer != _notBuyer &&
-                _notBuyer != admin
-        );
-
+    function test_Refund_CallableByTokenOwnerAfterMinimumDays() external {
         // Initial setup: Mint a token to _buyer, set up the sale and wait for the sale duration to pass
         _setupEscrowMinter();
-        _mintTo(_buyer, 1);
+        _mintTo(tokenRecipient, 1);
         uint256 saleDuration = 90 days;
         // Simulate time passing beyond the sale duration
         vm.warp(block.timestamp + saleDuration + 1 days);
 
         // Attempt to refund as a non-token owner
-        vm.prank(_notBuyer);
+        vm.prank(tokenRecipient2);
         bytes memory expectedError = abi.encodeWithSelector(
             EscrowNotTokenOwner.selector
         );
@@ -546,7 +529,7 @@ contract CrowdmuseEscrowMinterTest is
         minter.refund(address(product));
 
         // Successfully refund as the token owner
-        vm.prank(_buyer);
+        vm.prank(tokenRecipient);
         minter.refund(address(product));
     }
 

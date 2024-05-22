@@ -6,6 +6,7 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {IERC721A} from "erc721a/contracts/IERC721A.sol";
 import {PushSplitFactory} from "splits-v2/splitters/push/PushSplitFactory.sol";
+import {SplitV2Lib} from "splits-v2/libraries/SplitV2.sol";
 import {LimitedMintPerAddress} from "../utils/LimitedMintPerAddress.sol";
 import {IMinterErrors} from "../interfaces/IMinterErrors.sol";
 import {ICrowdmuseProduct} from "../interfaces/ICrowdmuseProduct.sol";
@@ -244,7 +245,7 @@ contract CrowdmuseEscrowMinter is
                 : 0;
         }
 
-        split = address(0);
+        split = createSplit();
     }
 
     /// @dev Validates the sale conditions before minting. Reverts if conditions are not met.
@@ -366,5 +367,26 @@ contract CrowdmuseEscrowMinter is
         }
 
         _;
+    }
+
+    // MOVE TO CROWDMUSE SPLITS LIB
+    function createSplit() internal returns (address split) {
+        uint256 lengthToTest = 100_000;
+        address[] memory _receivers = new address[](lengthToTest);
+        uint[] memory _amounts = new uint[](lengthToTest);
+        for (uint i; i < lengthToTest; i++) {
+            _receivers[i] = address(uint160(i + 1));
+            _amounts[i] = 100;
+        }
+
+        SplitV2Lib.Split memory splitParams = SplitV2Lib.Split({
+            recipients: _receivers,
+            allocations: _amounts,
+            totalAllocation: 100 * lengthToTest,
+            distributionIncentive: 0
+        });
+
+        address owner = address(0);
+        split = pushSplitFactory.createSplit(splitParams, owner, owner);
     }
 }
