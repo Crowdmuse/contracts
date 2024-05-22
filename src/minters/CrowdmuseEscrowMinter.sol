@@ -5,6 +5,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {IERC721A} from "erc721a/contracts/IERC721A.sol";
+import {SplitsV2} from "../utils/SplitsV2.sol";
 import {LimitedMintPerAddress} from "../utils/LimitedMintPerAddress.sol";
 import {IMinterErrors} from "../interfaces/IMinterErrors.sol";
 import {ICrowdmuseProduct} from "../interfaces/ICrowdmuseProduct.sol";
@@ -18,12 +19,17 @@ contract CrowdmuseEscrowMinter is
     ICrowdmuseEscrowMinter,
     IMinterErrors,
     IMinterStorage,
-    ReentrancyGuard
+    ReentrancyGuard,
+    SplitsV2
 {
     // product -> settings
     mapping(address => SalesConfig) internal salesConfigs;
     /// @notice A product's escrow balance
     mapping(address => uint256) public balanceOf;
+    /// @notice A contributor's escrow balance for a given target
+    mapping(address => mapping(address => uint256)) private contributions;
+
+    constructor(address _pushSplitFactory) SplitsV2(_pushSplitFactory) {}
 
     /// @notice Retrieves the contract metadata URI
     /// @return A string representing the metadata URI for this contract
@@ -92,7 +98,7 @@ contract CrowdmuseEscrowMinter is
             emit MintComment(mintTo, target, tokenId, quantity, comment);
         }
 
-        _transferToEscrow(target, totalPrice);
+        _transferToEscrow(target, mintTo, totalPrice);
 
         // Redeem if sold out
         if (ICrowdmuseProduct(target).garmentsAvailable() == 0) {
@@ -178,7 +184,11 @@ contract CrowdmuseEscrowMinter is
     /// Can be called by any token owner of the target product contract after saleEnd.
     /// Resets the product's escrow balance after the refund process.
     /// @param target The address of the target product contract whose escrowed funds are to be refunded.
-    function refund(address target) external nonReentrant {
+    /// @param refundRecipients List of refund recipients.
+    function refund(
+        address target,
+        address[] memory refundRecipients
+    ) external nonReentrant returns (address split) {
         SalesConfig storage config = salesConfigs[target];
         IERC721A productContract = IERC721A(target);
         uint256 totalSupply = productContract.totalSupply();
@@ -199,7 +209,7 @@ contract CrowdmuseEscrowMinter is
         }
 
         // refund all product owners
-        _refund(target);
+        split = _refund(target, refundRecipients);
 
         // After refunding all owners, ensure any remaining balance due to rounding or errors is cleared.
         if (balanceOf[target] > 0) {
@@ -219,21 +229,23 @@ contract CrowdmuseEscrowMinter is
 
     /// @notice Refunds the escrowed funds to the original token owners for a specified product.
     /// @param target The address of the product contract.
-    function _refund(address target) internal {
+    /// @param refundRecipients List of refund recipients.
+    function _refund(
+        address target,
+        address[] memory refundRecipients
+    )
+        internal
+        onlyValidRecipientList(target, refundRecipients)
+        returns (address split)
+    {
         SalesConfig storage config = salesConfigs[target];
-        IERC721A productContract = IERC721A(target);
-        uint256 totalSupply = productContract.totalSupply();
-
-        for (uint256 tokenId = 1; tokenId <= totalSupply; tokenId++) {
-            address owner = productContract.ownerOf(tokenId);
-
-            // transfer ERC20 to owner
-            IERC20(config.erc20Address).transfer(owner, config.pricePerToken);
-            // Decrement the escrow balance for each payment made
-            balanceOf[target] = balanceOf[target] > config.pricePerToken
-                ? balanceOf[target] - config.pricePerToken
-                : 0;
-        }
+        SplitReceiver[] memory splitRecipients = getRefundSplit(
+            target,
+            refundRecipients
+        );
+        split = createSplit(splitRecipients);
+        IERC20(config.erc20Address).transfer(split, balanceOf[target]);
+        balanceOf[target] = 0;
     }
 
     /// @dev Validates the sale conditions before minting. Reverts if conditions are not met.
@@ -278,10 +290,15 @@ contract CrowdmuseEscrowMinter is
         }
     }
 
-    /// @dev Transfers the specified amount to escrow and updates the escrow balance for the target product.
-    /// @param target The product contract address.
-    /// @param amount The amount to transfer to escrow.
-    function _transferToEscrow(address target, uint256 amount) internal {
+    /// @dev Transfers the specified amount to escrow and updates the escrow balance for the target product
+    /// @param target The product contract address
+    /// @param mintTo The address that will receive the minted tokens
+    /// @param amount The amount to transfer to escrow
+    function _transferToEscrow(
+        address target,
+        address mintTo,
+        uint256 amount
+    ) internal {
         SalesConfig storage config = salesConfigs[target];
 
         // Transfer USDC to escrow
@@ -295,11 +312,12 @@ contract CrowdmuseEscrowMinter is
         unchecked {
             if (target != address(0)) {
                 balanceOf[target] += amount;
+                contributions[target][mintTo] += amount;
             }
         }
 
         // Emit escrow event
-        emit EscrowDeposit(target, msg.sender, amount);
+        emit EscrowDeposit(target, mintTo, amount);
     }
 
     /// @dev Checks if the redeem conditions are met.
@@ -336,6 +354,24 @@ contract CrowdmuseEscrowMinter is
         }
     }
 
+    function getRefundSplit(
+        address target,
+        address[] memory refundRecipients
+    ) internal view returns (SplitReceiver[] memory splitReceivers) {
+        uint256 totalRecipients = refundRecipients.length;
+        splitReceivers = new SplitReceiver[](totalRecipients);
+
+        for (uint256 i = 0; i < totalRecipients; i++) {
+            address recipient = refundRecipients[i];
+            uint256 contribution = contributions[target][recipient];
+
+            splitReceivers[i] = SplitReceiver({
+                receiver: recipient,
+                allocation: uint32(contribution)
+            });
+        }
+    }
+
     /// @dev Modifier to restrict functions to the owner of the target contract.
     /// Throws `OwnableUnauthorizedAccount` if the caller is not the owner.
     /// @param target Address of the target contract to check ownership against.
@@ -354,6 +390,21 @@ contract CrowdmuseEscrowMinter is
             revert EscrowAlreadyExists();
         }
 
+        _;
+    }
+
+    /// @dev Ensures a refund list is valid for the given target.
+    /// @param target The target contract address for which the refund list is being verified.
+    /// @param refundRecipients List of refund recipients.
+    modifier onlyValidRecipientList(
+        address target,
+        address[] memory refundRecipients
+    ) {
+        for (uint256 i = 0; i < refundRecipients.length; i++) {
+            if (contributions[target][refundRecipients[i]] == 0) {
+                revert EscrowNotValidRefundList();
+            }
+        }
         _;
     }
 }

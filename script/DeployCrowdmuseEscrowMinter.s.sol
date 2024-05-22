@@ -8,8 +8,10 @@ import {CrowdmuseEscrowMinter} from "../src/minters/CrowdmuseEscrowMinter.sol";
 contract DeployCrowdmuseEscrowMinter is Script {
     function run() external {
         vm.startBroadcast();
-
-        CrowdmuseEscrowMinter minter = new CrowdmuseEscrowMinter();
+        address PUSH_SPLIT_FACTORY = 0xaDC87646f736d6A82e9a6539cddC488b2aA07f38;
+        CrowdmuseEscrowMinter minter = new CrowdmuseEscrowMinter(
+            PUSH_SPLIT_FACTORY
+        );
 
         console.log("CrowdmuseEscrowMinter deployed to:", address(minter));
 
