@@ -431,7 +431,13 @@ contract CrowdmuseEscrowMinterTest is
         address split = _refundAsAdmin();
 
         // Assertions after refund
+        uint256 splitBalance = usdc.balanceOf(split);
         assertTrue(_isContract(split), "Split should be returned from refund");
+        assertEq(
+            splitBalance,
+            0,
+            "Split should be pass full refund to recipients"
+        );
     }
 
     function test_Refund_EscrowRefundedEventEmitted() external {
