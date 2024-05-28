@@ -100,7 +100,8 @@ contract CrowdmuseEscrowMinterTest is
         // Attempt to set sale config as a non-owner should fail
         vm.prank(address(nonAdmin));
         vm.expectRevert(expectedError);
-        minter.setSale(address(product), MinimumEscrowDuration.Days90);
+        uint64 saleEnd = uint64(block.timestamp + (90 * 1 days));
+        minter.setSale(address(product), saleEnd);
 
         _setSale();
 
@@ -195,7 +196,8 @@ contract CrowdmuseEscrowMinterTest is
 
         // Attempt to set the sale again for the same product
         vm.prank(admin);
-        minter.setSale(address(product), MinimumEscrowDuration.Days90);
+        uint64 saleEnd = uint64(block.timestamp + (90 * 1 days));
+        minter.setSale(address(product), saleEnd);
     }
 
     function test_MintFlow() external {
@@ -559,7 +561,8 @@ contract CrowdmuseEscrowMinterTest is
     function _setSale() internal {
         // Set sale config as the owner should succeed
         vm.prank(admin);
-        minter.setSale(address(product), MinimumEscrowDuration.Days90);
+        uint64 saleEnd = uint64(block.timestamp + (90 * 1 days));
+        minter.setSale(address(product), saleEnd);
     }
 
     function _mintToTokenRecipient(uint256 quantity) internal {
