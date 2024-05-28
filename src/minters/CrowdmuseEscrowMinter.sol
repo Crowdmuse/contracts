@@ -111,14 +111,11 @@ contract CrowdmuseEscrowMinter is
     /// @notice Configures the sale for a specific product by setting various parameters including the sale duration based on a predefined enum.
     /// @dev This function sets the sale configuration for the target contract and emits a SaleSet event upon successful execution.
     /// @param target The address of the target contract for which the sale configuration is being set.
-    /// @param duration The minimum escrow duration selected from the MinimumEscrowDuration enum.
+    /// @param saleEnd The end of the escrow sale period.
     function setSale(
         address target,
-        MinimumEscrowDuration duration
+        uint64 saleEnd
     ) external onlyOwner(target) onlyIfInactive(target) {
-        uint64 minimumNumberDays = getDaysForEnum(duration);
-        uint64 saleEnd = uint64(block.timestamp + (minimumNumberDays * 1 days));
-
         ICrowdmuseProduct product = ICrowdmuseProduct(target);
         SalesConfig memory salesConfig = SalesConfig({
             saleStart: uint64(block.timestamp),
@@ -335,23 +332,6 @@ contract CrowdmuseEscrowMinter is
     /// @return bool Returns true if the caller is the owner of the target contract.
     function isOwner(address target) internal view returns (bool) {
         return Ownable(target).owner() == msg.sender;
-    }
-
-    /// @dev Converts a MinimumEscrowDuration enum value to its corresponding number of days.
-    /// @param duration The duration value of the enum MinimumEscrowDuration.
-    /// @return durationDays The number of days corresponding to the enum value.
-    function getDaysForEnum(
-        MinimumEscrowDuration duration
-    ) internal pure returns (uint64 durationDays) {
-        if (duration == MinimumEscrowDuration.Days15) {
-            durationDays = 15;
-        } else if (duration == MinimumEscrowDuration.Days30) {
-            durationDays = 30;
-        } else if (duration == MinimumEscrowDuration.Days60) {
-            durationDays = 60;
-        } else if (duration == MinimumEscrowDuration.Days90) {
-            durationDays = 90;
-        }
     }
 
     function getRefundSplit(
