@@ -1,0 +1,15 @@
+[submodule "lib/forge-std"]
+	path = lib/forge-std
+	url = https://github.com/foundry-rs/forge-std
+[submodule "lib/erc721a"]
+	path = lib/erc721a
+	url = https://github.com/chiru-labs/ERC721A
+[submodule "lib/openzeppelin"]
+	path = lib/openzeppelin
+	url = https://github.com/OpenZeppelin/openzeppelin-contracts
+[submodule "lib/splits-contracts-monorepo"]
+	path = lib/splits-contracts-monorepo
+	url = https://github.com/0xSplits/splits-contracts-monorepo
+[submodule "lib/solady"]
+	path = lib/solady
+	url = https://github.com/vectorized/solady
