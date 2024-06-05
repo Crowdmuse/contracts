@@ -509,6 +509,67 @@ contract CrowdmuseEscrowMinterTest is
         );
     }
 
+    function test_Refund_MultipleCalls_ArbitraryDepositors() external {
+        uint256 numberOfDepositors = _randomNumber(1, 1000);
+        address[] memory depositors = new address[](numberOfDepositors);
+        uint256[] memory initialBalances = new uint256[](numberOfDepositors);
+        uint256[] memory expectedRefund = new uint256[](numberOfDepositors);
+
+        _setupEscrowMinter();
+        SalesConfig memory config = minter.sale(address(product));
+
+        for (uint256 i = 0; i < numberOfDepositors; i++) {
+            // Generate a unique address for each depositor
+            depositors[i] = address(
+                uint160(
+                    uint256(keccak256(abi.encodePacked(i, block.timestamp)))
+                )
+            );
+            // Record each depositor's initial balance
+            initialBalances[i] = usdc.balanceOf(depositors[i]);
+            uint256 quantity = _randomNumber(1, 3);
+            _mintTo(depositors[i], quantity);
+            expectedRefund[i] = config.pricePerToken * quantity;
+        }
+
+        // Split depositors into batches for multiple refund calls
+        uint256 batchSize = numberOfDepositors / 3;
+        for (uint256 i = 0; i < numberOfDepositors; i += batchSize) {
+            uint256 end = i + batchSize;
+            if (end > numberOfDepositors) {
+                end = numberOfDepositors;
+            }
+
+            address[] memory batch = new address[](end - i);
+            for (uint256 j = i; j < end; j++) {
+                batch[j - i] = depositors[j];
+            }
+
+            // Execute refund by the product owner for the current batch
+            address split = _refundAsAdmin(batch);
+
+            // Assertions after refund for each batch
+            uint256 splitBalance = usdc.balanceOf(split);
+            uint256 totalRefunded = 0;
+            for (uint256 j = 0; j < batch.length; j++) {
+                totalRefunded += expectedRefund[i + j];
+            }
+            assertEq(
+                splitBalance,
+                totalRefunded,
+                "Split should receive payout from refund for the current batch"
+            );
+        }
+
+        // Final assertion for the total escrow balance
+        uint256 finalEscrowBalance = minter.balanceOf(address(product));
+        assertEq(
+            finalEscrowBalance,
+            0,
+            "Escrow balance should be zero after all refunds"
+        );
+    }
+
     function test_Refund_ConfigDeletedAfterRefund() external {
         _setupEscrowMinter();
         _mintToTokenRecipient(10);

@@ -200,18 +200,8 @@ contract CrowdmuseEscrowMinter is
             }
         }
 
-        // verify escrow has price
-        if (config.pricePerToken == 0) {
-            revert EscrowPriceZero();
-        }
-
         // refund all product owners
         split = _refund(target, refundRecipients);
-
-        // After refunding all owners, ensure any remaining balance due to rounding or errors is cleared.
-        if (balanceOf[target] > 0) {
-            revert EscrowBalanceNotZero();
-        }
 
         // Emit an event to log the refund action
         emit EscrowRefunded(
@@ -220,8 +210,10 @@ contract CrowdmuseEscrowMinter is
             totalSupply * config.pricePerToken
         );
 
-        // Clear the sales configuration for the product after refunding
-        delete salesConfigs[target];
+        // Clear the sales configuration for the product after full refund
+        if (balanceOf[target] == 0) {
+            delete salesConfigs[target];
+        }
     }
 
     /// @notice Refunds the escrowed funds to the original token owners for a specified product.
@@ -236,13 +228,29 @@ contract CrowdmuseEscrowMinter is
         returns (address split)
     {
         SalesConfig storage config = salesConfigs[target];
+        uint256 totalRefundAmount = 0;
         SplitReceiver[] memory splitRecipients = getRefundSplit(
             target,
             refundRecipients
         );
+
+        for (uint256 i = 0; i < refundRecipients.length; i++) {
+            address recipient = refundRecipients[i];
+            uint256 contribution = contributions[target][recipient];
+            totalRefundAmount += contribution;
+
+            // Clear the contribution for the recipient after adding to the total refund amount
+            contributions[target][recipient] = 0;
+        }
+
+        require(
+            totalRefundAmount > 0,
+            "Total refund amount must be greater than zero"
+        );
+
         split = createSplit(splitRecipients);
-        IERC20(config.erc20Address).transfer(split, balanceOf[target]);
-        balanceOf[target] = 0;
+        IERC20(config.erc20Address).transfer(split, totalRefundAmount);
+        balanceOf[target] -= totalRefundAmount;
     }
 
     /// @dev Validates the sale conditions before minting. Reverts if conditions are not met.
