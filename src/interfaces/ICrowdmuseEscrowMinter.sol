@@ -4,12 +4,6 @@ pragma solidity ^0.8.10;
 /// @title ICrowdmuseEscrowMinter
 /// @notice Interface for Crowdmuse Escrow Minter functionality
 interface ICrowdmuseEscrowMinter {
-    /// @dev Error thrown when an operation that requires the escrow balance to be zero is attempted, but the escrow balance is not zero.
-    error EscrowBalanceNotZero();
-
-    /// @dev Error thrown when an operation that requires a non-zero price for escrow is attempted with a zero price.
-    error EscrowPriceZero();
-
     /// @dev Error thrown when an operation that requires the escrow to not exist is attempted, but the escrow already exists.
     error EscrowAlreadyExists();
 
